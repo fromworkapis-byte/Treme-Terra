@@ -51,82 +51,85 @@ class GremioDatabase extends Dexie {
       settings: 'key',
     });
 
+    // Helper to convert to plain object for audit log
+    const toPlain = (obj: Record<string, unknown>): Record<string, unknown> => JSON.parse(JSON.stringify(obj));
+
     // Hooks para auditoria automática
     this.entries.hook('creating', (primKey, obj, trans) => {
-      this.auditLog('ENTRY', obj.id, 'CREATE', undefined, obj, trans);
+      this.auditLog('ENTRY', obj.id, 'CREATE', undefined, toPlain(obj), trans);
     });
     this.entries.hook('updating', (modifications, primKey, obj, trans) => {
-      this.auditLog('ENTRY', primKey as string, 'UPDATE', obj, { ...obj, ...modifications }, trans);
+      this.auditLog('ENTRY', primKey as string, 'UPDATE', toPlain(obj), toPlain({ ...obj, ...modifications }), trans);
     });
     this.entries.hook('deleting', (primKey, obj, trans) => {
-      this.auditLog('ENTRY', primKey as string, 'DELETE', obj, undefined, trans);
+      this.auditLog('ENTRY', primKey as string, 'DELETE', toPlain(obj), undefined, trans);
     });
 
     this.expenses.hook('creating', (primKey, obj, trans) => {
-      this.auditLog('EXPENSE', obj.id, 'CREATE', undefined, obj, trans);
+      this.auditLog('EXPENSE', obj.id, 'CREATE', undefined, toPlain(obj), trans);
     });
     this.expenses.hook('updating', (modifications, primKey, obj, trans) => {
-      this.auditLog('EXPENSE', primKey as string, 'UPDATE', obj, { ...obj, ...modifications }, trans);
+      this.auditLog('EXPENSE', primKey as string, 'UPDATE', toPlain(obj), toPlain({ ...obj, ...modifications }), trans);
     });
     this.expenses.hook('deleting', (primKey, obj, trans) => {
-      this.auditLog('EXPENSE', primKey as string, 'DELETE', obj, undefined, trans);
+      this.auditLog('EXPENSE', primKey as string, 'DELETE', toPlain(obj), undefined, trans);
     });
 
     this.transfers.hook('creating', (primKey, obj, trans) => {
-      this.auditLog('TRANSFER', obj.id, 'CREATE', undefined, obj, trans);
+      this.auditLog('TRANSFER', obj.id, 'CREATE', undefined, toPlain(obj), trans);
     });
     this.transfers.hook('updating', (modifications, primKey, obj, trans) => {
-      this.auditLog('TRANSFER', primKey as string, 'UPDATE', obj, { ...obj, ...modifications }, trans);
+      this.auditLog('TRANSFER', primKey as string, 'UPDATE', toPlain(obj), toPlain({ ...obj, ...modifications }), trans);
     });
     this.transfers.hook('deleting', (primKey, obj, trans) => {
-      this.auditLog('TRANSFER', primKey as string, 'DELETE', obj, undefined, trans);
+      this.auditLog('TRANSFER', primKey as string, 'DELETE', toPlain(obj), undefined, trans);
     });
 
     this.members.hook('creating', (primKey, obj, trans) => {
-      this.auditLog('MEMBER', obj.id, 'CREATE', undefined, obj, trans);
+      this.auditLog('MEMBER', obj.id, 'CREATE', undefined, toPlain(obj), trans);
     });
     this.members.hook('updating', (modifications, primKey, obj, trans) => {
-      this.auditLog('MEMBER', primKey as string, 'UPDATE', obj, { ...obj, ...modifications }, trans);
+      this.auditLog('MEMBER', primKey as string, 'UPDATE', toPlain(obj), toPlain({ ...obj, ...modifications }), trans);
     });
     this.members.hook('deleting', (primKey, obj, trans) => {
-      this.auditLog('MEMBER', primKey as string, 'DELETE', obj, undefined, trans);
+      this.auditLog('MEMBER', primKey as string, 'DELETE', toPlain(obj), undefined, trans);
     });
 
     this.memberPayments.hook('creating', (primKey, obj, trans) => {
-      this.auditLog('MEMBER_PAYMENT', obj.id, 'CREATE', undefined, obj, trans);
+      this.auditLog('MEMBER_PAYMENT', obj.id, 'CREATE', undefined, toPlain(obj), trans);
     });
     this.memberPayments.hook('updating', (modifications, primKey, obj, trans) => {
-      this.auditLog('MEMBER_PAYMENT', primKey as string, 'UPDATE', obj, { ...obj, ...modifications }, trans);
+      this.auditLog('MEMBER_PAYMENT', primKey as string, 'UPDATE', toPlain(obj), toPlain({ ...obj, ...modifications }), trans);
     });
     this.memberPayments.hook('deleting', (primKey, obj, trans) => {
-      this.auditLog('MEMBER_PAYMENT', primKey as string, 'DELETE', obj, undefined, trans);
+      this.auditLog('MEMBER_PAYMENT', primKey as string, 'DELETE', toPlain(obj), undefined, trans);
     });
 
     this.accounts.hook('creating', (primKey, obj, trans) => {
-      this.auditLog('ACCOUNT', obj.id, 'CREATE', undefined, obj, trans);
+      this.auditLog('ACCOUNT', obj.id, 'CREATE', undefined, toPlain(obj), trans);
     });
     this.accounts.hook('updating', (modifications, primKey, obj, trans) => {
-      this.auditLog('ACCOUNT', primKey as string, 'UPDATE', obj, { ...obj, ...modifications }, trans);
+      this.auditLog('ACCOUNT', primKey as string, 'UPDATE', toPlain(obj), toPlain({ ...obj, ...modifications }), trans);
     });
     this.accounts.hook('deleting', (primKey, obj, trans) => {
-      this.auditLog('ACCOUNT', primKey as string, 'DELETE', obj, undefined, trans);
+      this.auditLog('ACCOUNT', primKey as string, 'DELETE', toPlain(obj), undefined, trans);
     });
 
     this.categories.hook('creating', (primKey, obj, trans) => {
-      this.auditLog('CATEGORY', obj.id, 'CREATE', undefined, obj, trans);
+      this.auditLog('CATEGORY', obj.id, 'CREATE', undefined, toPlain(obj), trans);
     });
     this.categories.hook('updating', (modifications, primKey, obj, trans) => {
-      this.auditLog('CATEGORY', primKey as string, 'UPDATE', obj, { ...obj, ...modifications }, trans);
+      this.auditLog('CATEGORY', primKey as string, 'UPDATE', toPlain(obj), toPlain({ ...obj, ...modifications }), trans);
     });
     this.categories.hook('deleting', (primKey, obj, trans) => {
-      this.auditLog('CATEGORY', primKey as string, 'DELETE', obj, undefined, trans);
+      this.auditLog('CATEGORY', primKey as string, 'DELETE', toPlain(obj), undefined, trans);
     });
 
     this.users.hook('creating', (primKey, obj, trans) => {
-      this.auditLog('USER', obj.id, 'CREATE', undefined, obj, trans);
+      this.auditLog('USER', obj.id, 'CREATE', undefined, toPlain(obj), trans);
     });
     this.users.hook('updating', (modifications, primKey, obj, trans) => {
-      this.auditLog('USER', primKey as string, 'UPDATE', obj, { ...obj, ...modifications }, trans);
+      this.auditLog('USER', primKey as string, 'UPDATE', toPlain(obj), toPlain({ ...obj, ...modifications }), trans);
     });
   }
 
@@ -136,16 +139,20 @@ class GremioDatabase extends Dexie {
     action: AuditAction,
     oldData: Record<string, unknown> | undefined,
     newData: Record<string, unknown> | undefined,
-    trans: Dexie.Transaction
+    trans: any
   ) {
+    const toPlainObject = (obj: Record<string, unknown> | undefined): Record<string, unknown> | undefined => {
+      if (!obj) return undefined;
+      return JSON.parse(JSON.stringify(obj));
+    };
     const log: AuditLog = {
       id: crypto.randomUUID(),
       entityType,
       entityId,
       action,
       userId: this.getCurrentUserId(),
-      oldData: oldData as Record<string, unknown> | undefined,
-      newData: newData as Record<string, unknown> | undefined,
+      oldData: toPlainObject(oldData),
+      newData: toPlainObject(newData),
       reason: action === 'DELETE' ? 'Exclusão manual' : undefined,
       ipAddress: 'local',
       userAgent: navigator.userAgent,
@@ -161,6 +168,11 @@ class GremioDatabase extends Dexie {
 }
 
 export const db = new GremioDatabase();
+
+// Attach helper functions to db instance
+db.updateAccountBalance = updateAccountBalance;
+db.updateAllAccountBalances = updateAllAccountBalances;
+db.recalculateAccountBalance = recalculateAccountBalance;
 
 // ===== SEED DATA =====
 export async function seedDatabase() {

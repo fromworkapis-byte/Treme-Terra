@@ -412,6 +412,33 @@ export function useDeleteTransfer() {
   });
 }
 
+export function useUpdateTransfer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Transfer> }) => {
+      const oldTransfer = await db.transfers.get(id);
+      await db.transfers.update(id, { ...data, updatedAt: new Date().toISOString() });
+      if (oldTransfer) {
+        await Promise.all([
+          db.updateAccountBalance(oldTransfer.fromAccountId),
+          db.updateAccountBalance(oldTransfer.toAccountId),
+        ]);
+        if (data.fromAccountId && data.fromAccountId !== oldTransfer.fromAccountId) {
+          await db.updateAccountBalance(data.fromAccountId);
+        }
+        if (data.toAccountId && data.toAccountId !== oldTransfer.toAccountId) {
+          await db.updateAccountBalance(data.toAccountId);
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transfers'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
 // ===== MEMBERS =====
 export function useMembers(filters?: MemberFilters) {
   return useQuery({

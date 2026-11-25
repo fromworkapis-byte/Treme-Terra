@@ -31,17 +31,17 @@ function Modal({ open, onOpenChange, title, description, children, size = 'md', 
           sizes[size]
         )}>
           {(title || showClose) && (
-            <DialogPrimitive.Header className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <div>
-                {title && <DialogPrimitive.Title className="text-lg font-semibold text-text-primary">{title}</DialogPrimitive.Title>}
-                {description && <DialogPrimitive.Description className="text-sm text-text-secondary mt-1">{description}</DialogPrimitive.Description>}
+                {title && <h2 className="text-lg font-semibold text-text-primary">{title}</h2>}
+                {description && <p className="text-sm text-text-secondary mt-1">{description}</p>}
               </div>
               {showClose && (
                 <DialogPrimitive.Close className="p-1 rounded-lg hover:bg-tertiary transition-colors text-text-secondary hover:text-text-primary" aria-label="Fechar">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
                 </DialogPrimitive.Close>
               )}
-            </DialogPrimitive.Header>
+            </div>
           )}
           <div className="p-6 max-h-[70vh] overflow-y-auto">
             {children}

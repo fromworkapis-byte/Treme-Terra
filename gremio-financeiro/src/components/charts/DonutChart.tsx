@@ -7,7 +7,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  PieProps,
 } from 'recharts';
 import { cn } from '../../utils/cn';
 import { formatBRL } from '../../db';
@@ -44,35 +43,6 @@ export function DonutChart({ data, className, height = 320, innerRadius = 60, ou
     );
   };
 
-  const CustomLegend = ({ payload }: { payload: Array<{ value: string; color: string }> }) => null; // We render custom legend outside
-
-  const RADIANS_PER_DEGREE = Math.PI / 180;
-
-  const renderLabel = (props: PieProps['label']) => {
-    const { cx, cy, midAngle, innerRadius: r, outerRadius: R, percent } = props;
-    if (percent * 100 < 5) return null; // Don't show labels for small slices
-    
-    const radius = (r + R) / 2;
-    const x = cx + radius * Math.cos(-midAngle * RADIANS_PER_DEGREE);
-    const y = cy + radius * Math.sin(-midAngle * RADIANS_PER_DEGREE);
-    
-    return (
-      <text
-        x={x}
-        y={y}
-        fill="#f1f5f9"
-        fontSize={11}
-        fontFamily="Inter"
-        fontWeight={600}
-        textAnchor={midAngle > 90 && midAngle < 270 ? 'end' : 'start'}
-        dominantBaseline="central"
-        filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))"
-      >
-        {(percent * 100).toFixed(0)}%
-      </text>
-    );
-  };
-
   return (
     <div className={cn('w-full flex items-center justify-center', className)} style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -86,7 +56,7 @@ export function DonutChart({ data, className, height = 320, innerRadius = 60, ou
             paddingAngle={2}
             dataKey="value"
             nameKey="name"
-            label={renderLabel}
+            label={({ name, percent }) => percent * 100 >= 5 ? `${(percent * 100).toFixed(0)}%` : null}
             labelLine={false}
           >
             {data.map((entry, index) => (
@@ -94,7 +64,7 @@ export function DonutChart({ data, className, height = 320, innerRadius = 60, ou
             ))}
           </Pie>
           <Tooltip content={<CustomTooltip />} wrapperStyle={{ outline: 'none' }} />
-          <Legend wrapper={<CustomLegend />} />
+          <Legend />
         </PieChart>
       </ResponsiveContainer>
     </div>

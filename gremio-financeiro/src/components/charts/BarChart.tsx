@@ -26,6 +26,11 @@ interface BarChartProps {
   height?: number;
 }
 
+const COLORS = {
+  income: '#10b981',
+  expense: '#ef4444',
+};
+
 export function BarChart({ data, className, height = 280 }: BarChartProps) {
   const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; name: string; color: string }>; label?: string }) => {
     if (!active || !payload?.length) return null;
@@ -42,17 +47,6 @@ export function BarChart({ data, className, height = 280 }: BarChartProps) {
       </div>
     );
   };
-
-  const CustomLegend = ({ payload }: { payload: Array<{ value: string; color: string }> }) => (
-    <div className="flex items-center gap-6 mt-2">
-      {payload.map((entry, index) => (
-        <div key={index} className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded" style={{ backgroundColor: entry.color }} />
-          <span className="text-sm text-text-secondary">{entry.value}</span>
-        </div>
-      ))}
-    </div>
-  );
 
   return (
     <div className={cn('w-full', className)} style={{ height }}>
@@ -74,12 +68,12 @@ export function BarChart({ data, className, height = 280 }: BarChartProps) {
             width={60}
           />
           <Tooltip content={<CustomTooltip />} wrapperStyle={{ outline: 'none' }} />
-          <Legend wrapper={<CustomLegend />} />
-          <Bar dataKey="income" name="Entradas" radius={[4, 4, 0, 0]}>
-            <Cell fill="#10b981" />
+          <Legend />
+          <Bar dataKey="income" name="Entradas" radius={[4, 4, 0, 0]} fill={COLORS.income}>
+            <Cell fill={COLORS.income} />
           </Bar>
-          <Bar dataKey="expense" name="Despesas" radius={[4, 4, 0, 0]}>
-            <Cell fill="#ef4444" />
+          <Bar dataKey="expense" name="Despesas" radius={[4, 4, 0, 0]} fill={COLORS.expense}>
+            <Cell fill={COLORS.expense} />
           </Bar>
         </RechartsBarChart>
       </ResponsiveContainer>

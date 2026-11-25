@@ -1,7 +1,7 @@
 // ===== AUDIT PAGE =====
 import * as React from 'react';
 import { useState } from 'react';
-import { Search, Filter, Download, Eye, AlertCircle, Clock, User, Trash2, Edit, Plus, RotateCcw } from 'lucide-react';
+import { Search, Filter, Download, Eye, AlertCircle, Clock, User as UserIcon, Trash2, Edit, Plus, RotateCcw } from 'lucide-react';
 import { Button, Input, Select, Badge, Card, CardContent, CardHeader, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, TableHead, ScrollArea, Modal } from '../components/ui';
 import { db } from '../db';
 import { formatBRL, formatDateBR } from '../db';

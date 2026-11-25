@@ -1,13 +1,13 @@
 // ===== SETTINGS PAGE =====
 import * as React from 'react';
 import { useState } from 'react';
-import { Save, Download, Upload, UserPlus, Key, Trash2, RefreshCw, Shield, Database, Building, Bell, Palette, Globe } from 'lucide-react';
-import { Button, Input, Select, Card, CardContent, CardHeader, CardTitle, CardDescription, Switch, Label, Tabs, TabsList, TabsTrigger, TabsContent, Modal, Badge } from '../components/ui';
+import { Save, Download, Upload, UserPlus, Key, Trash2, RefreshCw, Shield, Database, Building, Bell, Palette, Globe, Plus, Edit, AlertCircle } from 'lucide-react';
+import { Button, Input, Select, Card, CardContent, CardHeader, CardTitle, CardDescription, Switch, Label, Tabs, TabsList, TabsTrigger, TabsContent, Modal, Badge, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, ScrollArea } from '../components/ui';
 import { db, exportBackup, importBackup, formatBRL } from '../db';
 import { useAuth } from '../context/AuthContext';
 import { useAccounts, useCreateAccount, useUpdateAccount, useDeleteAccount } from '../hooks/useFinancialData';
 import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory } from '../hooks/useFinancialData';
-import { useUsers } from '../hooks/useFinancialData'; // We'll need to add this hook
+
 import { useMembers, useCreateMember, useUpdateMember, useDeleteMember } from '../hooks/useFinancialData';
 import { AccountForm } from '../components/forms';
 import { CategoryForm } from '../components/forms';
@@ -22,7 +22,7 @@ function useUsers() {
 
 export function Settings() {
   const { user, changePassword, hasPermission } = useAuth();
-  const [activeTab, setActiveTab] = useState<'general' | 'accounts' | 'categories' | 'users' | 'members' | 'backup' | 'security'>('general');
+  const [activeTab, setActiveTab] = useState<string>('general');
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<Account | Category | Member | null>(null);
   const [formType, setFormType] = useState<'account' | 'category' | 'member'>('account');

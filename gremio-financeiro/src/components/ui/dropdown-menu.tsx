@@ -29,13 +29,12 @@ const DropdownMenuContent = React.forwardRef<React.ElementRef<typeof DropdownMen
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
 
 const DropdownMenuItem = React.forwardRef<React.ElementRef<typeof DropdownMenuPrimitive.Item>, React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item>>(
-  ({ className, inset, ...props }, ref) => (
+  ({ className, ...props }, ref) => (
     <DropdownMenuPrimitive.Item
       ref={ref}
       className={cn(
         'relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors',
         'focus:bg-tertiary focus:text-text-primary data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-        inset && 'pl-8',
         className
       )}
       {...props}
@@ -45,8 +44,8 @@ const DropdownMenuItem = React.forwardRef<React.ElementRef<typeof DropdownMenuPr
 DropdownMenuItem.displayName = DropdownMenuPrimitive.Item.displayName;
 
 const DropdownMenuLabel = React.forwardRef<React.ElementRef<typeof DropdownMenuPrimitive.Label>, React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Label>>(
-  ({ className, inset, ...props }, ref) => (
-    <DropdownMenuPrimitive.Label ref={ref} className={cn('px-2 py-1.5 text-sm font-semibold text-text-secondary', inset && 'pl-8', className)} {...props} />
+  ({ className, ...props }, ref) => (
+    <DropdownMenuPrimitive.Label ref={ref} className={cn('px-2 py-1.5 text-sm font-semibold text-text-secondary', className)} {...props} />
   )
 );
 DropdownMenuLabel.displayName = DropdownMenuPrimitive.Label.displayName;

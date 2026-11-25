@@ -5,6 +5,7 @@ export type UserRole = 'ADMIN' | 'TREASURER' | 'VIEWER';
 export interface User {
   id: string;
   email: string;
+  passwordHash: string;
   name: string;
   role: UserRole;
   isActive: boolean;

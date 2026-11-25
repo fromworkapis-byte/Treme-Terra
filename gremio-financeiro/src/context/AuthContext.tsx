@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Verificar se é primeiro acesso
     const settings = await db.settings.get('firstAccess');
-    const firstAccess = settings?.value === true;
+    const firstAccess = settings?.value === true || settings?.value === 'true' || settings?.value === 1;
 
     return { success: true, firstAccess };
   };
@@ -110,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await db.users.update(user.id, { passwordHash: newHash, updatedAt: new Date().toISOString() });
 
     // Marcar primeiro acesso como false
-    await db.settings.put({ key: 'firstAccess', value: false, description: 'Primeiro acesso - trocar senha', updatedAt: new Date().toISOString() });
+    await db.settings.put({ key: 'firstAccess', value: false, description: 'Primeiro acesso - trocar senha', updatedAt: new Date().toISOString() } as any);
 
     setUser({ ...user, passwordHash: newHash });
     return { success: true };

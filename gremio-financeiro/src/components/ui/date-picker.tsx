@@ -3,25 +3,36 @@ import * as React from 'react';
 import { cn } from '../../utils/cn';
 import { formatDateBR, parseDateBR, getCurrentMonthYear } from '../../db';
 
-interface DatePickerProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface DatePickerProps {
   label?: string;
   error?: string;
   value?: string;
-  onChange?: (value: string) => void;
+  onChange?: (value: string | React.ChangeEvent<HTMLInputElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  id?: string;
+  disabled?: boolean;
+  required?: boolean;
+  placeholder?: string;
+  className?: string;
+  name?: string;
 }
 
 const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
-  ({ className, label, error, value, onChange, id, ...props }, ref) => {
+  ({ className, label, error, value, onChange, onBlur, id, disabled, required, placeholder, name, ...props }, forwardedRef) => {
     const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
     const errorId = `${inputId}-error`;
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const raw = e.target.value.replace(/\D/g, '');
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement> | string) => {
+      const raw = typeof e === 'string' ? e.replace(/\D/g, '') : e.target.value.replace(/\D/g, '');
       let formatted = '';
       if (raw.length >= 2) formatted = raw.slice(0, 2);
       if (raw.length >= 4) formatted += '/' + raw.slice(2, 4);
       if (raw.length >= 8) formatted += '/' + raw.slice(4, 8);
-      e.target.value = formatted;
+      
+      if (typeof e !== 'string') {
+        e.target.value = formatted;
+      }
+      
       if (onChange && raw.length === 8) {
         onChange(parseDateBR(formatted));
       }
@@ -43,12 +54,15 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
         )}
         <input
           id={inputId}
-          ref={ref}
+          ref={forwardedRef}
+          name={name}
           type="text"
-          placeholder="DD/MM/AAAA"
+          placeholder={placeholder || "DD/MM/AAAA"}
           value={value ? formatDateBR(value) : ''}
           onChange={handleChange}
           onBlur={handleBlur}
+          disabled={disabled}
+          required={required}
           className={cn(
             'w-full px-4 py-2.5 bg-primary border rounded-lg text-text-primary placeholder:text-text-muted',
             'focus:outline-none focus:ring-2 focus:ring-info focus:border-transparent transition-all',

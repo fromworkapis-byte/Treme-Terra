@@ -1,6 +1,6 @@
 // ===== TRANSFER FORM =====
 import * as React from 'react';
-import { useForm } from 'react-hook_form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button, Input, Select, Textarea, DatePicker, Card, CardContent, CardHeader, CardTitle } from '../ui';
@@ -157,7 +157,7 @@ export function TransferForm({ initialData, accounts, onSuccess, onCancel }: Tra
                 Cancelar
               </Button>
             )}
-            <Button type="submit" variant="warning" disabled={isSubmitting || createTransfer.isPending || updateTransfer.isPending}>
+            <Button type="submit" variant="primary" disabled={isSubmitting || createTransfer.isPending || updateTransfer.isPending}>
               {isSubmitting || createTransfer.isPending || updateTransfer.isPending ? 'Salvando...' : isEditing ? 'Atualizar' : 'Transferir'}
             </Button>
           </div>

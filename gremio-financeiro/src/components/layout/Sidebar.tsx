@@ -112,7 +112,6 @@ export function Sidebar() {
                 collapsed && 'justify-center px-2'
               )}
               title={collapsed ? item.label : undefined}
-              aria-current={isActive ? 'page' : undefined}
             >
               <item.icon className={cn('w-5 h-5 flex-shrink-0', collapsed && 'mx-auto')} aria-hidden="true" />
               {!collapsed && <span className="truncate">{item.label}</span>}

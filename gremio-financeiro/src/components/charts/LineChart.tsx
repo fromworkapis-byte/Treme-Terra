@@ -26,6 +26,11 @@ interface LineChartProps {
   height?: number;
 }
 
+const COLORS = {
+  income: '#10b981',
+  expense: '#ef4444',
+};
+
 export function LineChart({ data, className, height = 280 }: LineChartProps) {
   const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; name: string; color: string }>; label?: string }) => {
     if (!active || !payload?.length) return null;
@@ -43,24 +48,13 @@ export function LineChart({ data, className, height = 280 }: LineChartProps) {
     );
   };
 
-  const CustomLegend = ({ payload }: { payload: Array<{ value: string; color: string }> }) => (
-    <div className="flex items-center gap-6 mt-2">
-      {payload.map((entry, index) => (
-        <div key={index} className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-          <span className="text-sm text-text-secondary">{entry.value}</span>
-        </div>
-      ))}
-    </div>
-  );
-
-  const CustomDot = (props: React.ComponentProps<typeof Dot>) => {
-    const { cx, cy, r, fill, payload } = props;
+  const CustomDot = (props: any) => {
+    const { cx, cy, fill, payload } = props;
     if (!payload) return null;
     return (
       <g>
         <circle cx={cx} cy={cy} r={5} fill="#0a0f1a" />
-        <circle cx={cx} cy={cy} r={3} fill={fill} />
+        <circle cx={cx} cy={cy} r={3} fill={fill || payload.color || COLORS.income} />
       </g>
     );
   };
@@ -86,12 +80,12 @@ export function LineChart({ data, className, height = 280 }: LineChartProps) {
             width={60}
           />
           <Tooltip content={<CustomTooltip />} wrapperStyle={{ outline: 'none' }} />
-          <Legend wrapper={<CustomLegend />} />
+          <Legend />
           <Line
             type="monotone"
             dataKey="income"
             name="Entradas"
-            stroke="#10b981"
+            stroke={COLORS.income}
             strokeWidth={3}
             dot={<CustomDot />}
             activeDot={{ r: 6 }}
@@ -100,7 +94,7 @@ export function LineChart({ data, className, height = 280 }: LineChartProps) {
             type="monotone"
             dataKey="expense"
             name="Despesas"
-            stroke="#ef4444"
+            stroke={COLORS.expense}
             strokeWidth={3}
             dot={<CustomDot />}
             activeDot={{ r: 6 }}

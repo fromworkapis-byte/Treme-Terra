@@ -23,13 +23,16 @@ const queryClient = new QueryClient({
   },
 });
 
-// Initialize database
-React.useEffect(() => {
-  seedDatabase();
-}, []);
+// Initialize database once
+let isInitialized = false;
 
 function AppRoutes() {
   const { isAuthenticated, isLoading, user } = useAuth();
+
+  if (!isInitialized) {
+    isInitialized = true;
+    seedDatabase();
+  }
 
   if (isLoading) {
     return (
