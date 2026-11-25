@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grêmio da Companhia - Dashboard Financeiro</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Inter', system-ui, sans-serif; }
+    :root {
+      --bg-primary: #0a0f1a;
+      --bg-secondary: #111827;
+      --bg-tertiary: #1e293b;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --green: #10b981;
+      --green-light: #34d399;
+      --red: #ef4444;
+      --red-light: #f87171;
+      --blue: #3b82f6;
+      --yellow: #f59e0b;
+      --border: #1e293b;
+      --border-hover: #334155;
+    }
+    .bg-primary { background-color: var(--bg-primary); }
+    .bg-secondary { background-color: var(--bg-secondary); }
+    .bg-tertiary { background-color: var(--bg-tertiary); }
+    .text-primary { color: var(--text-primary); }
+    .text-secondary { color: var(--text-secondary); }
+    .text-muted { color: var(--text-muted); }
+    .border-custom { border-color: var(--border); }
+    .border-hover:hover { border-color: var(--border-hover); }
+    .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: var(--bg-primary); }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 3px; }
+    .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fade-in-up { animation: fadeInUp 0.4s ease-out forwards; }
+    .delay-1 { animation-delay: 0.05s; }
+    .delay-2 { animation-delay: 0.1s; }
+    .delay-3 { animation-delay: 0.15s; }
+    .delay-4 { animation-delay: 0.2s; }
+    .delay-5 { animation-delay: 0.25s; }
+    .delay-6 { animation-delay: 0.3s; }
+    .chart-container { position: relative; height: 280px; width: 100%; }
+  </style>
+</head>
+<body class="bg-primary text-primary min-h-screen">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, createContext, useContext } = React;
+
+    // ===== MOCK DATA =====
+    const mockEntries = [
+      { id: 1, date: '2026-11-20', description: 'Mensalidade Novembro', category: 'Mensalidades', amount: 150.00, method: 'PIX', account: 'Conta Bancária', responsible: 'João Silva' },
+      { id: 2, date: '2026-11-18', description: 'Festa Julina - Vendas', category: 'Vendas', amount: 2340.50, method: 'Dinheiro', account: 'Caixa Físico', responsible: 'Maria Santos' },
+      { id: 3, date: '2026-11-15', description: 'Contribuição Extra', category: 'Contribuições', amount: 500.00, method: 'Transferência', account: 'Conta Bancária', responsible: 'Pedro Lima' },
+      { id: 4, date: '2026-11-10', description: 'Doação Empresa XYZ', category: 'Doações', amount: 1000.00, method: 'PIX', account: 'PIX', responsible: 'Ana Costa' },
+      { id: 5, date: '2026-11-05', description: 'Mensalidade Outubro (atraso)', category: 'Mensalidades', amount: 150.00, method: 'Dinheiro', account: 'Caixa Físico', responsible: 'Carlos Dias' },
+    ];
+
+    const mockExpenses = [
+      { id: 1, date: '2026-11-22', description: 'Churrasco Confraternização', category: 'Alimentação', amount: 890.00, method: 'PIX', account: 'Conta Bancária', beneficiary: 'Mercado Central', receipt: 'NF-001' },
+      { id: 2, date: '2026-11-19', description: 'Decoração Festa Anual', category: 'Festas', amount: 1250.00, method: 'Transferência', account: 'Conta Bancária', beneficiary: 'Decor & Cia', receipt: 'NF-002' },
+      { id: 3, date: '2026-11-12', description: 'Material Limpeza', category: 'Materiais', amount: 320.50, method: 'Dinheiro', account: 'Caixa Físico', beneficiary: 'Atacadão', receipt: 'NF-003' },
+      { id: 4, date: '2026-11-08', description: 'Manutenção Ar Condicionado', category: 'Manutenção', amount: 450.00, method: 'PIX', account: 'Conta Bancária', beneficiary: 'ClimaFrio', receipt: 'NF-004' },
+      { id: 5, date: '2026-11-03', description: 'Transporte Integrantes', category: 'Transporte', amount: 180.00, method: 'Dinheiro', account: 'Caixa Físico', beneficiary: 'Uber', receipt: '' },
+    ];
+
+    const mockTransfers = [
+      { id: 1, date: '2026-11-15', amount: 1000.00, from: 'Caixa Físico', to: 'Conta Bancária' },
+      { id: 2, date: '2026-11-01', amount: 500.00, from: 'PIX', to: 'Conta Bancária' },
+    ];
+
+    const accounts = [
+      { id: 1, name: 'Caixa Físico', type: 'CASH', balance: 2450.00, color: '#10b981' },
+      { id: 2, name: 'Conta Bancária', type: 'BANK', balance: 12300.50, color: '#3b82f6' },
+      { id: 3, name: 'PIX', type: 'PIX', balance: 1800.00, color: '#f59e0b' },
+    ];
+
+    const monthlyData = [
+      { month: 'Jan', income: 4200, expense: 3100, balance: 1100 },
+      { month: 'Fev', income: 3800, expense: 2900, balance: 2000 },
+      { month: 'Mar', income: 5100, expense: 4200, balance: 2900 },
+      { month: 'Abr', income: 4500, expense: 3800, balance: 3600 },
+      { month: 'Mai', income: 6200, expense: 4100, balance: 5700 },
+      { month: 'Jun', income: 3900, expense: 3500, balance: 6100 },
+      { month: 'Jul', income: 7100, expense: 5200, balance: 8000 },
+      { month: 'Ago', income: 4800, expense: 3900, balance: 8900 },
+      { month: 'Set', income: 5500, expense: 4300, balance: 10100 },
+      { month: 'Out', income: 4200, expense: 3800, balance: 10500 },
+      { month: 'Nov', income: 4140, expense: 3090, balance: 11550 },
+    ];
+
+    const categoryExpenses = [
+      { name: 'Alimentação', value: 2100, color: '#ef4444' },
+      { name: 'Festas', value: 1850, color: '#f97316' },
+      { name: 'Manutenção', value: 980, color: '#eab308' },
+      { name: 'Materiais', value: 720, color: '#22c55e' },
+      { name: 'Transporte', value: 450, color: '#06b6d4' },
+      { name: 'Serviços', value: 380, color: '#3b82f6' },
+      { name: 'Equipamentos', value: 290, color: '#8b5cf6' },
+      { name: 'Outros', value: 180, color: '#ec4899' },
+    ];
+
+    const yearlyData = [
+      { year: 2023, income: 45000, expense: 38000 },
+      { year: 2024, income: 52000, expense: 41000 },
+      { year: 2025, income: 58000, expense: 44000 },
+      { year: 2026, income: 51200, expense: 39650 },
+    ];
+
+    // ===== UTILS =====
+    const formatBRL = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+    const formatDate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('pt-BR');
+    const getCategoryColor = (cat) => {
+      const colors = { 'Mensalidades': '#3b82f6', 'Contribuições': '#10b981', 'Doações': '#8b5cf6', 'Eventos': '#f97316', 'Festas': '#ec4899', 'Vendas': '#22c55e', 'Outros recebimentos': '#64748b',
+        'Alimentação': '#ef4444', 'Manutenção': '#eab308', 'Materiais': '#22c55e', 'Transporte': '#06b6d4', 'Serviços': '#3b82f6', 'Equipamentos': '#8b5cf6', 'Outros gastos': '#64748b' };
+      return colors[cat] || '#64748b';
+    };
+
+    // ===== ICONS (inline SVG) =====
+    const Icons = {
+      LayoutDashboard: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>,
+      ArrowDownLeft: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>,
+      ArrowUpRight: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7"/></svg>,
+      Minus: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4"/></svg>,
+      DollarSign: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+      CreditCard: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>,
+      Wallet: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>,
+      Smartphone: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>,
+      Users: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>,
+      FileText: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>,
+      Settings: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>,
+      ChevronLeft: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>,
+      ChevronRight: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>,
+      Search: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>,
+      Bell: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>,
+      User: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>,
+      Plus: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>,
+      TrendingUp: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>,
+      ArrowDown: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>,
+      ArrowUp: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7"/></svg>,
+      ArrowLeftRight: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>,
+      Download: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>,
+      Upload: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l4-4m-4 4v12"/></svg>,
+      Eye: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>,
+      Edit: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>,
+      Trash: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>,
+      Shield: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>,
+      History: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+      Building: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>,
+      Menu: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16"/></svg>,
+      X: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>,
+      Check: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg>,
+      AlertCircle: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>,
+    };
+
+    // ===== COMPONENTS =====
+    const Card = ({ children, className = '', delay }) => (
+      <div className={`bg-secondary border border-custom rounded-xl p-6 transition-all duration-300 hover:border-hover hover:shadow-[0_10px_15px_-3px_rgb(0_0_0_/_0.4)] animate-fade-in-up ${className}`} style={{ animationDelay: delay ? `${delay}s` : 0 }}>
+        {children}
+      </div>
+    );
+
+    const KPICard = ({ title, value, icon: Icon, trend, trendLabel, color, delay }) => (
+      <Card delay={delay}>
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-sm text-secondary font-medium">{title}</p>
+            <p className="text-3xl font-bold text-primary mt-1">{value}</p>
+            {trend && (
+              <div className="flex items-center gap-1 mt-2">
+                <span className={color === 'green' ? 'text-green-400' : 'text-red-400'}>{trend}</span>
+                <span className="text-xs text-muted">{trendLabel}</span>
+              </div>
+            )}
+          </div>
+          <div className={`p-3 rounded-xl ${color === 'green' ? 'bg-green-500/10' : color === 'red' ? 'bg-red-500/10' : color === 'blue' ? 'bg-blue-500/10' : 'bg-yellow-500/10'}`}>
+            <Icon className={`w-6 h-6 ${color === 'green' ? 'text-green-400' : color === 'red' ? 'text-red-400' : color === 'blue' ? 'text-blue-400' : 'text-yellow-400'}`} />
+          </div>
+        </div>
+      </Card>
+    );
+
+    const StatCard = ({ title, value, icon: Icon, color, delay }) => (
+      <Card className="text-center" delay={delay}>
+        <div className={`p-3 rounded-xl mx-auto mb-4 ${color === 'green' ? 'bg-green-500/10' : color === 'blue' ? 'bg-blue-500/10' : 'bg-yellow-500/10'}`}>
+          <Icon className={`w-7 h-7 ${color === 'green' ? 'text-green-400' : color === 'blue' ? 'text-blue-400' : 'text-yellow-400'}`} />
+        </div>
+        <p className="text-3xl font-bold text-primary">{value}</p>
+        <p className="text-sm text-secondary mt-1">{title}</p>
+      </Card>
+    );
+
+    const Badge = ({ children, variant = 'default' }) => {
+      const styles = {
+        default: 'bg-tertiary text-secondary',
+        green: 'bg-green-500/10 text-green-400',
+        red: 'bg-red-500/10 text-red-400',
+        blue: 'bg-blue-500/10 text-blue-400',
+        yellow: 'bg-yellow-500/10 text-yellow-400',
+        gray: 'bg-tertiary text-muted',
+      };
+      return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[variant]}`}>{children}</span>;
+    };
+
+    const Button = ({ children, variant = 'default', size = 'md', className = '', onClick, disabled, type = 'button', ...props }) => {
+      const base = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-primary disabled:opacity-50 disabled:cursor-not-allowed';
+      const variants = {
+        default: 'bg-tertiary text-primary hover:bg-border-hover focus:ring-tertiary',
+        primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
+        success: 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500',
+        destructive: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
+        outline: 'border border-custom bg-transparent hover:bg-tertiary focus:ring-tertiary',
+        ghost: 'bg-transparent hover:bg-tertiary focus:ring-tertiary',
+      };
+      const sizes = {
+        sm: 'px-3 py-1.5 text-sm gap-1.5',
+        md: 'px-4 py-2 text-sm gap-2',
+        lg: 'px-6 py-3 text-base gap-2',
+        icon: 'p-2',
+      };
+      return (
+        <button type={type} className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} onClick={onClick} disabled={disabled} {...props}>
+          {children}
+        </button>
+      );
+    };
+
+    const Input = ({ label, error, className = '', ...props }) => (
+      <div className="w-full">
+        {label && <label className="block text-sm font-medium text-secondary mb-1.5">{label}</label>}
+        <input className={`w-full px-4 py-2.5 bg-primary border border-custom rounded-lg text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${error ? 'border-red-500 focus:ring-red-500' : ''} ${className}`} {...props} />
+        {error && <p className="mt-1.5 text-sm text-red-400">{error}</p>}
+      </div>
+    );
+
+    const Select = ({ label, options, className = '', ...props }) => (
+      <div className="w-full">
+        {label && <label className="block text-sm font-medium text-secondary mb-1.5">{label}</label>}
+        <select className={`w-full px-4 py-2.5 bg-primary border border-custom rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none bg-[url('data:image/svg+xml,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 20 20%27%3e%3cpath stroke=%27%2394a3b8%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%271.5%27 d=%27M6 8l4 4 4-4%27/%3e%3c/svg%3e')] bg-right-3 bg-no-repeat pr-10 ${className}`} {...props}>
+          {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </div>
+    );
+
+    const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
+      if (!isOpen) return null;
+      const sizes = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl', full: 'max-w-[90vw]' };
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+          <div className={`w-full ${sizes[size]} bg-secondary border border-custom rounded-2xl shadow-2xl animate-fade-in-up`} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-custom">
+              <h2 className="text-lg font-semibold text-primary">{title}</h2>
+              <button onClick={onClose} className="p-1 rounded-lg hover:bg-tertiary transition-colors text-secondary hover:text-primary">
+                <Icons.X />
+              </button>
+            </div>
+            <div className="p-6 max-h-[60vh] overflow-y-auto">{children}</div>
+          </div>
+        </div>
+      );
+    };
+
+    const Sidebar = ({ isOpen, onClose, currentPage, onNavigate }) => {
+      const navItems = [
+        { id: 'dashboard', label: 'Dashboard', icon: Icons.LayoutDashboard },
+        { id: 'entries', label: 'Entradas', icon: Icons.ArrowDownLeft },
+        { id: 'expenses', label: 'Despesas', icon: Icons.ArrowUpRight },
+        { id: 'movements', label: 'Movimentações', icon: Icons.ArrowLeftRight },
+        { id: 'accounts', label: 'Contas e Caixa', icon: Icons.Wallet },
+        { id: 'members', label: 'Integrantes', icon: Icons.Users },
+        { id: 'reports', label: 'Relatórios', icon: Icons.FileText },
+        { id: 'audit', label: 'Auditoria', icon: Icons.Shield },
+        { id: 'settings', label: 'Configurações', icon: Icons.Settings },
+      ];
+      return (
+        <>
+          {isOpen && <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden" onClick={onClose} />}
+          <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-secondary border-r border-custom transition-transform duration-300 ease-in-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+            <div className="flex items-center justify-between h-16 px-4 border-b border-custom">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-green-500/10">
+                  <Icons.Building className="w-6 h-6 text-green-400" />
+                </div>
+                <span className="font-bold text-primary text-lg hidden lg:block">Grêmio</span>
+              </div>
+              <button onClick={onClose} className="lg:hidden p-1 rounded-lg hover:bg-tertiary text-secondary">
+                <Icons.X />
+              </button>
+            </div>
+            <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-thin">
+              {navItems.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => { onNavigate(item.id); onClose(); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${currentPage === item.id
+                    ? 'bg-green-500/10 text-green-400'
+                    : 'text-secondary hover:bg-tertiary hover:text-primary'}`}
+                >
+                  <item.icon className="w-5 h-5 flex-shrink-0" />
+                  <span className="truncate">{item.label}</span>
+                </button>
+              ))}
+            </nav>
+            <div className="p-3 border-t border-custom">
+              <div className="flex items-center gap-3 px-3 py-2">
+                <div className="w-8 h-8 rounded-full bg-tertiary flex items-center justify-center">
+                  <Icons.User className="w-4 h-4 text-secondary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-primary truncate">Administrador</p>
+                  <p className="text-xs text-muted truncate">admin@gremio.local</p>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </>
+      );
+    };
+
+    const Header = ({ onMenuClick, onSearch, searchQuery, setSearchQuery }) => (
+      <header className="sticky top-0 z-30 h-16 bg-secondary/80 backdrop-blur-md border-b border-custom flex items-center justify-between px-4 lg:px-6">
+        <div className="flex items-center gap-4">
+          <button onClick={onMenuClick} className="lg:hidden p-2 rounded-lg hover:bg-tertiary text-secondary">
+            <Icons.Menu />
+          </button>
+          <div className="relative w-full max-w-md hidden md:block">
+            <Icons.Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
+            <input
+              type="text"
+              placeholder="Buscar movimentações, integrantes..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-primary border border-custom rounded-lg text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="p-2 rounded-lg hover:bg-tertiary text-secondary transition-colors relative">
+            <Icons.Bell />
+            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+          </button>
+          <div className="flex items-center gap-3 pl-4 border-l border-custom lg:hidden">
+            <div className="w-8 h-8 rounded-full bg-tertiary flex items-center justify-center">
+              <Icons.User className="w-4 h-4 text-secondary" />
+            </div>
+          </div>
+        </div>
+      </header>
+    );
+
+    // ===== CHARTS (Canvas-based for simplicity) =====
+    const AreaChart = ({ data, color = 'green' }) => {
+      const canvasRef = useRef(null);
+      useEffect(() => {
+        const ctx = canvasRef.current.getContext('2d');
+        const { width, height } = canvasRef.current.getBoundingClientRect();
+        canvasRef.current.width = width * 2;
+        canvasRef.current.height = height * 2;
+        ctx.scale(2, 2);
+
+        const maxVal = Math.max(...data.map(d => d.balance));
+        const minVal = Math.min(...data.map(d => d.balance));
+        const range = maxVal - minVal || 1;
+        const padding = 20;
+        const w = width - padding * 2;
+        const h = height - padding * 2;
+
+        ctx.clearRect(0, 0, width, height);
+
+        // Gradient
+        const gradient = ctx.createLinearGradient(0, 0, 0, height);
+        if (color === 'green') {
+          gradient.addColorStop(0, 'rgba(16, 185, 129, 0.3)');
+          gradient.addColorStop(1, 'rgba(16, 185, 129, 0)');
+        } else {
+          gradient.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
+          gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+        }
+
+        // Path
+        ctx.beginPath();
+        data.forEach((d, i) => {
+          const x = padding + (i / (data.length - 1)) * w;
+          const y = padding + h - ((d.balance - minVal) / range) * h;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.lineTo(padding + w, padding + h);
+        ctx.lineTo(padding, padding + h);
+        ctx.closePath();
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Line
+        ctx.beginPath();
+        data.forEach((d, i) => {
+          const x = padding + (i / (data.length - 1)) * w;
+          const y = padding + h - ((d.balance - minVal) / range) * h;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.strokeStyle = color === 'green' ? '#10b981' : '#3b82f6';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Dots
+        data.forEach((d, i) => {
+          const x = padding + (i / (data.length - 1)) * w;
+          const y = padding + h - ((d.balance - minVal) / range) * h;
+          ctx.beginPath();
+          ctx.arc(x, y, 4, 0, Math.PI * 2);
+          ctx.fillStyle = '#fff';
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+          ctx.fillStyle = color === 'green' ? '#10b981' : '#3b82f6';
+          ctx.fill();
+        });
+      }, [data, color]);
+      return <canvas ref={canvasRef} className="w-full h-full" />;
+    };
+
+    const BarChart = ({ data }) => {
+      const canvasRef = useRef(null);
+      useEffect(() => {
+        const ctx = canvasRef.current.getContext('2d');
+        const { width, height } = canvasRef.current.getBoundingClientRect();
+        canvasRef.current.width = width * 2;
+        canvasRef.current.height = height * 2;
+        ctx.scale(2, 2);
+
+        const maxVal = Math.max(...data.flatMap(d => [d.income, d.expense]));
+        const padding = 40;
+        const w = width - padding * 2;
+        const h = height - padding * 2;
+        const barW = w / data.length * 0.6;
+        const gap = w / data.length * 0.4;
+
+        ctx.clearRect(0, 0, width, height);
+
+        // Grid lines
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.1)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+          const y = padding + (h / 4) * i;
+          ctx.beginPath();
+          ctx.moveTo(padding, y);
+          ctx.lineTo(padding + w, y);
+          ctx.stroke();
+        }
+
+        data.forEach((d, i) => {
+          const x = padding + i * (barW * 2 + gap) + gap / 2;
+          const incomeH = (d.income / maxVal) * h;
+          const expenseH = (d.expense / maxVal) * h;
+
+          // Income bar
+          const grad1 = ctx.createLinearGradient(0, padding + h - incomeH, 0, padding + h);
+          grad1.addColorStop(0, '#34d399');
+          grad1.addColorStop(1, '#10b981');
+          ctx.fillStyle = grad1;
+          ctx.fillRect(x, padding + h - incomeH, barW, incomeH);
+
+          // Expense bar
+          const grad2 = ctx.createLinearGradient(0, padding + h - expenseH, 0, padding + h);
+          grad2.addColorStop(0, '#f87171');
+          grad2.addColorStop(1, '#ef4444');
+          ctx.fillStyle = grad2;
+          ctx.fillRect(x + barW, padding + h - expenseH, barW, expenseH);
+
+          // Label
+          ctx.fillStyle = '#64748b';
+          ctx.font = '11px Inter';
+          ctx.textAlign = 'center';
+          ctx.fillText(d.month, x + barW, padding + h + 18);
+        });
+
+        // Legend
+        ctx.font = '12px Inter';
+        ctx.fillStyle = '#10b981';
+        ctx.fillRect(width - 160, 16, 12, 12);
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('Entradas', width - 144, 25);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(width - 80, 16, 12, 12);
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('Despesas', width - 64, 25);
+      }, [data]);
+      return <canvas ref={canvasRef} className="w-full h-full" />;
+    };
+
+    const DonutChart = ({ data }) => {
+      const canvasRef = useRef(null);
+      useEffect(() => {
+        const ctx = canvasRef.current.getContext('2d');
+        const { width, height } = canvasRef.current.getBoundingClientRect();
+        const size = Math.min(width, height);
+        canvasRef.current.width = size * 2;
+        canvasRef.current.height = size * 2;
+        ctx.scale(2, 2);
+        ctx.translate(size / 2, size / 2);
+        const radius = size / 2 - 20;
+        const innerRadius = radius * 0.6;
+
+        const total = data.reduce((s, d) => s + d.value, 0);
+        let startAngle = -Math.PI / 2;
+
+        data.forEach(d => {
+          const sliceAngle = (d.value / total) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, radius, startAngle, startAngle + sliceAngle);
+          ctx.arc(0, 0, innerRadius, startAngle + sliceAngle, startAngle, true);
+          ctx.closePath();
+          ctx.fillStyle = d.color;
+          ctx.fill();
+          startAngle += sliceAngle;
+        });
+      }, [data]);
+      return <canvas ref={canvasRef} className="w-full h-full mx-auto" />;
+    };
+
+    const LineChart = ({ data }) => {
+      const canvasRef = useRef(null);
+      useEffect(() => {
+        const ctx = canvasRef.current.getContext('2d');
+        const { width, height } = canvasRef.current.getBoundingClientRect();
+        canvasRef.current.width = width * 2;
+        canvasRef.current.height = height * 2;
+        ctx.scale(2, 2);
+
+        const maxVal = Math.max(...data.flatMap(d => [d.income, d.expense]));
+        const padding = 40;
+        const w = width - padding * 2;
+        const h = height - padding * 2;
+
+        ctx.clearRect(0, 0, width, height);
+
+        // Grid
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.1)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+          const y = padding + (h / 4) * i;
+          ctx.beginPath();
+          ctx.moveTo(padding, y);
+          ctx.lineTo(padding + w, y);
+          ctx.stroke();
+        }
+
+        // Income line
+        const grad1 = ctx.createLinearGradient(0, 0, 0, height);
+        grad1.addColorStop(0, '#34d399');
+        grad1.addColorStop(1, '#10b981');
+        ctx.beginPath();
+        data.forEach((d, i) => {
+          const x = padding + (i / (data.length - 1)) * w;
+          const y = padding + h - (d.income / maxVal) * h;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.strokeStyle = grad1;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Expense line
+        const grad2 = ctx.createLinearGradient(0, 0, 0, height);
+        grad2.addColorStop(0, '#f87171');
+        grad2.addColorStop(1, '#ef4444');
+        ctx.beginPath();
+        data.forEach((d, i) => {
+          const x = padding + (i / (data.length - 1)) * w;
+          const y = padding + h - (d.expense / maxVal) * h;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.strokeStyle = grad2;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Dots
+        data.forEach((d, i) => {
+          const x = padding + (i / (data.length - 1)) * w;
+          const y1 = padding + h - (d.income / maxVal) * h;
+          const y2 = padding + h - (d.expense / maxVal) * h;
+          [y1, y2].forEach((y, idx) => {
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, Math.PI * 2);
+            ctx.fillStyle = '#0a0f1a';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, Math.PI * 2);
+            ctx.fillStyle = idx === 0 ? '#10b981' : '#ef4444';
+            ctx.fill();
+          });
+        });
+
+        // Labels
+        ctx.fillStyle = '#64748b';
+        ctx.font = '11px Inter';
+        ctx.textAlign = 'center';
+        data.forEach((d, i) => {
+          const x = padding + (i / (data.length - 1)) * w;
+          ctx.fillText(d.year, x, padding + h + 20);
+        });
+
+        // Legend
+        ctx.font = '12px Inter';
+        ctx.fillStyle = '#10b981';
+        ctx.fillRect(width - 160, 16, 12, 12);
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('Entradas', width - 144, 25);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(width - 80, 16, 12, 12);
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('Despesas', width - 64, 25);
+      }, [data]);
+      return <canvas ref={canvasRef} className="w-full h-full" />;
+    };
+
+    // ===== PAGES =====
+    const Dashboard = () => {
+      const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
+      const cashAccount = accounts.find(a => a.type === 'CASH');
+      const bankAccount = accounts.find(a => a.type === 'BANK');
+      const pixAccount = accounts.find(a => a.type === 'PIX');
+      const monthIncome = mockEntries.reduce((s, e) => s + e.amount, 0);
+      const monthExpense = mockExpenses.reduce((s, e) => s + e.amount, 0);
+      const monthResult = monthIncome - monthExpense;
+
+      const recentMovements = [
+        ...mockEntries.map(e => ({ ...e, type: 'entry', categoryColor: getCategoryColor(e.category) })),
+        ...mockExpenses.map(e => ({ ...e, type: 'expense', categoryColor: getCategoryColor(e.category) })),
+        ...mockTransfers.map(t => ({ ...t, type: 'transfer', description: `Transferência: ${t.from} → ${t.to}` }))
+      ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
+
+      return (
+        <div className="p-4 lg:p-6 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl lg:text-3xl font-bold text-primary">Dashboard</h1>
+              <p className="text-secondary mt-1">Visão geral das finanças do Grêmio da Companhia</p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm"><Icons.Download /> Exportar PDF</Button>
+              <Button variant="outline" size="sm"><Icons.Upload /> Importar</Button>
+            </div>
+          </div>
+
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            <KPICard title="Saldo Total" value={formatBRL(totalBalance)} icon={Icons.DollarSign} trend={formatBRL(monthResult)} trendLabel="vs mês anterior" color="green" delay={0} />
+            <KPICard title="Entradas no Mês" value={formatBRL(monthIncome)} icon={Icons.ArrowDownLeft} trend="+12.5%" trendLabel="vs mês anterior" color="green" delay={0.05} />
+            <KPICard title="Despesas no Mês" value={formatBRL(monthExpense)} icon={Icons.ArrowUpRight} trend="-8.2%" trendLabel="vs mês anterior" color="red" delay={0.1} />
+            <KPICard title="Resultado do Mês" value={formatBRL(monthResult)} icon={Icons.TrendingUp} trend={monthResult >= 0 ? 'Superávit' : 'Déficit'} trendLabel={monthResult >= 0 ? 'Positivo' : 'Negativo'} color={monthResult >= 0 ? 'green' : 'red'} delay={0.15} />
+            <StatCard title="Caixa Físico" value={formatBRL(cashAccount?.balance || 0)} icon={Icons.Wallet} color="green" delay={0.2} />
+            <StatCard title="Conta Bancária" value={formatBRL(bankAccount?.balance || 0)} icon={Icons.CreditCard} color="blue" delay={0.25} />
+          </div>
+
+          {/* Charts Row 1 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card className="animate-fade-in-up" delay={0.1}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-primary">Evolução do Saldo (12 meses)</h3>
+                <Badge variant="green">Atualizado</Badge>
+              </div>
+              <div className="chart-container"><AreaChart data={monthlyData} /></div>
+            </Card>
+            <Card className="animate-fade-in-up" delay={0.15}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-primary">Entradas vs Saídas</h3>
+                <Badge variant="blue">Comparativo</Badge>
+              </div>
+              <div className="chart-container"><BarChart data={monthlyData} /></div>
+            </Card>
+          </div>
+
+          {/* Charts Row 2 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card className="animate-fade-in-up" delay={0.2}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-primary">Despesas por Categoria</h3>
+                <Badge variant="yellow">Novembro</Badge>
+              </div>
+              <div className="flex h-[320px]">
+                <div className="flex-1 flex items-center justify-center"><DonutChart data={categoryExpenses} /></div>
+                <div className="w-64 lg:w-72 p-4 border-l border-custom overflow-y-auto">
+                  {categoryExpenses.map((cat, i) => (
+                    <div key={cat.name} className="flex items-center justify-between py-2 border-b border-custom/50 last:border-0 animate-fade-in-up" style={{ animationDelay: `${0.2 + i * 0.03}s` }}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
+                        <span className="text-sm text-secondary">{cat.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-primary">{formatBRL(cat.value)}</p>
+                        <p className="text-xs text-muted">{(cat.value / categoryExpenses.reduce((s, c) => s + c.value, 0) * 100).toFixed(1)}%</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+            <Card className="animate-fade-in-up" delay={0.25}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-primary">Histórico Anual</h3>
+                <Badge variant="blue">2023-2026</Badge>
+              </div>
+              <div className="chart-container"><LineChart data={yearlyData} /></div>
+            </Card>
+          </div>
+
+          {/* Recent Movements */}
+          <Card className="animate-fade-in-up" delay={0.3}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-primary">Movimentações Recentes</h3>
+              <Button variant="ghost" size="sm" className="text-secondary hover:text-primary">Ver todas</Button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-muted border-b border-custom">
+                    <th className="pb-3 font-medium">Data</th>
+                    <th className="pb-3 font-medium">Descrição</th>
+                    <th className="pb-3 font-medium">Categoria</th>
+                    <th className="pb-3 font-medium text-right">Valor</th>
+                    <th className="pb-3 font-medium">Conta</th>
+                    <th className="pb-3 font-medium">Tipo</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-custom/50">
+                  {recentMovements.map((m, i) => (
+                    <tr key={`${m.type}-${m.id}`} className="hover:bg-tertiary/50 transition-colors animate-fade-in-up" style={{ animationDelay: `${0.3 + i * 0.02}s` }}>
+                      <td className="py-3 text-secondary">{formatDate(m.date)}</td>
+                      <td className="py-3 text-primary font-medium">{m.description}</td>
+                      <td className="py-3"><Badge variant="gray" style={{ backgroundColor: m.categoryColor + '20', color: m.categoryColor }}>{m.category || (m.from ? `${m.from} → ${m.to}` : '-')}</Badge></td>
+                      <td className="py-3 text-right font-mono font-medium">
+                        {m.type === 'entry' && <span className="text-green-400">+{formatBRL(m.amount)}</span>}
+                        {m.type === 'expense' && <span className="text-red-400">-{formatBRL(m.amount)}</span>}
+                        {m.type === 'transfer' && <span className="text-yellow-400">{formatBRL(m.amount)}</span>}
+                      </td>
+                      <td className="py-3 text-secondary">{m.account || '-'}</td>
+                      <td className="py-3">
+                        {m.type === 'entry' && <Badge variant="green">Entrada</Badge>}
+                        {m.type === 'expense' && <Badge variant="red">Despesa</Badge>}
+                        {m.type === 'transfer' && <Badge variant="yellow">Transferência</Badge>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      );
+    };
+
+    const PlaceholderPage = ({ title, icon: Icon, description }) => (
+      <div className="p-4 lg:p-6">
+        <div className="flex items-center gap-4 mb-8">
+          <div className="p-3 rounded-xl bg-tertiary"><Icon className="w-7 h-7 text-secondary" /></div>
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-primary">{title}</h1>
+            <p className="text-secondary mt-1">{description}</p>
+          </div>
+        </div>
+        <Card>
+          <div className="text-center py-12">
+            <Icons.AlertCircle className="w-12 h-12 text-muted mx-auto mb-4 opacity-50" />
+            <h3 className="text-lg font-medium text-primary mb-2">Em desenvolvimento</h3>
+            <p className="text-secondary mb-6">Esta funcionalidade será implementada na próxima fase.</p>
+            <Button variant="primary"><Icons.Plus /> Nova {title.slice(0, -1)}</Button>
+          </div>
+        </Card>
+      </div>
+    );
+
+    // ===== MAIN APP =====
+    const App = () => {
+      const [sidebarOpen, setSidebarOpen] = useState(false);
+      const [currentPage, setCurrentPage] = useState('dashboard');
+      const [searchQuery, setSearchQuery] = useState('');
+
+      const pages = {
+        dashboard: <Dashboard />,
+        entries: <PlaceholderPage title="Entradas" icon={Icons.ArrowDownLeft} description="Registre e gerencie todos os recebimentos do grêmio" />,
+        expenses: <PlaceholderPage title="Despesas" icon={Icons.ArrowUpRight} description="Controle todos os gastos e anexe comprovantes" />,
+        movements: <PlaceholderPage title="Movimentações" icon={Icons.ArrowLeftRight} description="Histórico completo de todas as operações financeiras" />,
+        accounts: <PlaceholderPage title="Contas e Caixa" icon={Icons.Wallet} description="Gerencie contas bancárias, caixa físico e transferências" />,
+        members: <PlaceholderPage title="Integrantes" icon={Icons.Users} description="Cadastre integrantes e acompanhe contribuições mensais" />,
+        reports: <PlaceholderPage title="Relatórios" icon={Icons.FileText} description="Gere relatórios em PDF e Excel para prestação de contas" />,
+        audit: <PlaceholderPage title="Auditoria" icon={Icons.Shield} description="Histórico imutável de todas as alterações financeiras" />,
+        settings: <PlaceholderPage title="Configurações" icon={Icons.Settings} description="Configure categorias, usuários, backup e preferências" />,
+      };
+
+      return (
+        <div className="min-h-screen flex">
+          <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} currentPage={currentPage} onNavigate={setCurrentPage} />
+          <div className="flex-1 flex flex-col min-w-0 lg:ml-0">
+            <Header onMenuClick={() => setSidebarOpen(true)} onSearch={() => {}} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+            <main className="flex-1 overflow-y-auto bg-primary">
+              {pages[currentPage]}
+            </main>
+          </div>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
