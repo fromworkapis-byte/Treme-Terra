@@ -16,6 +16,7 @@ import {
   useRecordMemberPaymentsBulk, useDeleteMemberPayment, useUploadAttachment, useReorderMembers,
 } from '../hooks/useFinancialData';
 import { useMemberDragReorder } from '../hooks/useMemberDragReorder';
+import { buildChargeImage } from '../lib/chargeImage';
 import {
   formatBRL, formatDateBR, getCurrentMonthYear, getPreviousMonthYear, getNextMonthYear,
   parseBRL, parseDateBR,
@@ -159,8 +160,9 @@ export function Members() {
         amountCents: settings.monthlyAmount,
       });
       try {
-        await copyTextAndImage(chargeText, qrDataUrl);
-        setMessage(`Texto e QR Code de ${monthLabel(selectedMonth)} copiados. Cole no WhatsApp.`);
+        const chargeImage = await buildChargeImage({ message: chargeText, qrDataUrl });
+        await copyTextAndImage(chargeText, chargeImage);
+        setMessage(`Imagem com texto e QR Code de ${monthLabel(selectedMonth)} copiada. Cole no WhatsApp.`);
       } catch {
         await navigator.clipboard.writeText(chargeText);
         setMessage(`Texto de ${monthLabel(selectedMonth)} copiado. O navegador não copiou a imagem; baixe o QR Code em Configurações → Cobrança.`);
