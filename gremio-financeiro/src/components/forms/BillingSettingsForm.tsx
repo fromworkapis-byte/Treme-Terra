@@ -19,7 +19,6 @@ export function BillingSettingsForm() {
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [chargeDescription, setChargeDescription] = useState('Mensalidade do Grêmio');
-  const [dueDate, setDueDate] = useState('');
   const [groupMessage, setGroupMessage] = useState('');
   const [qrCode, setQrCode] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -84,8 +83,8 @@ export function BillingSettingsForm() {
       if (!settings.pixKey.trim()) throw new Error('Configure a chave PIX antes de gerar a cobrança.');
       if (monthlyAmount <= 0) throw new Error('Informe um valor mensal maior que zero.');
       if (!chargeDescription.trim()) throw new Error('Informe a descrição da cobrança.');
-      if (!dueDate) throw new Error('Informe a data de vencimento.');
 
+      const monthYear = getCurrentMonthYear();
       const payload = buildPixPayload({
         config: {
           key: settings.pixKey,
@@ -94,22 +93,20 @@ export function BillingSettingsForm() {
           merchantCity: settings.merchantCity,
         },
         amountCents: monthlyAmount,
-        txid: `GRM${dueDate.replace(/-/g, '')}`,
+        txid: `GRM${monthYear.replace(/-/g, '')}`,
         description: chargeDescription.trim(),
       });
       const generatedQr = await buildPixQr(payload);
-      const formattedDueDate = new Date(`${dueDate}T12:00:00`).toLocaleDateString('pt-BR');
       setQrCode(generatedQr);
       setGroupMessage([
-        `📣 ${chargeDescription.trim()}`,
+        `📣 *${chargeDescription.trim()}*`,
+        `Mês de referência: *${monthLabel(monthYear)}*`,
         '',
-        `Valor: ${formatBRL(monthlyAmount)}`,
-        `Vencimento: ${formattedDueDate}`,
+        `*Valor: ${formatBRL(monthlyAmount)}*`,
         '',
-        'PIX Copia e Cola:',
-        payload,
+        'Pague pelo QR Code PIX anexo ou pelo botão de PIX no WhatsApp.',
         '',
-        'O QR Code PIX está na imagem anexada. Após pagar, envie o comprovante no grupo.',
+        '✅ *Após pagar, envie o comprovante de volta por aqui* para registrarmos no grêmio.',
       ].join('\n'));
       setChargeMessage('Cobrança gerada. Baixe o QR Code e anexe-o junto com a mensagem no grupo.');
     } catch (error) {
@@ -166,7 +163,7 @@ export function BillingSettingsForm() {
       <Card>
         <CardHeader>
           <CardTitle>Gerar cobrança para o grupo</CardTitle>
-          <CardDescription>Crie uma mensagem com vencimento e PIX; o envio ao grupo é manual.</CardDescription>
+          <CardDescription>Crie a mensagem do mês atual com o QR Code PIX; o envio ao grupo é manual.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -176,14 +173,16 @@ export function BillingSettingsForm() {
               onChange={event => setChargeDescription(event.target.value)}
               placeholder="Ex.: Mensalidade do Grêmio"
             />
-            <Input
-              label="Data de vencimento"
-              type="date"
-              value={dueDate}
-              onChange={event => setDueDate(event.target.value)}
-            />
+            <div className="rounded-lg border border-border/70 bg-tertiary/30 px-3 py-2">
+              <Label>Mês cobrado</Label>
+              <p className="mt-1 text-sm font-medium text-text-primary">{monthLabel(getCurrentMonthYear())}</p>
+              <p className="text-xs text-text-muted">Preenchido automaticamente</p>
+            </div>
           </div>
-          <p className="text-sm text-text-secondary">Valor do PIX: {formatBRL(parseBRL(amount) || 0)} (valor mensal configurado acima).</p>
+          <div className="rounded-lg border border-info/40 bg-info/10 px-3 py-2">
+            <p className="text-sm font-medium text-text-primary">Valor: {formatBRL(parseBRL(amount) || 0)}</p>
+            <p className="text-xs text-text-muted">Valor mensal configurado acima, destacado na mensagem.</p>
+          </div>
           <Button variant="primary" onClick={handleGenerateGroupCharge} disabled={generating}>
             <QrCode className="w-4 h-4 mr-2" /> {generating ? 'Gerando...' : 'Gerar mensagem e QR Code'}
           </Button>

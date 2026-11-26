@@ -3,7 +3,7 @@ import * as React from 'react';
 import { useState } from 'react';
 import {
   Plus, Search, Edit, Trash, ChevronLeft, ChevronRight, Camera, QrCode, Send,
-  AlertCircle, CheckCircle, X, Paperclip, ListChecks, Loader2,
+  AlertCircle, CheckCircle, X, Paperclip, ListChecks, Loader2, GripVertical,
 } from 'lucide-react';
 import {
   Button, Input, Select, Badge, Card, CardContent, Table, TableHeader, TableBody,
@@ -13,8 +13,9 @@ import {
 import { PageHeader } from '../components/layout';
 import {
   useMembers, useDeleteMember, useMemberPaymentStatus, useRecordMemberPayment,
-  useRecordMemberPaymentsBulk, useDeleteMemberPayment, useUploadAttachment,
+  useRecordMemberPaymentsBulk, useDeleteMemberPayment, useUploadAttachment, useReorderMembers,
 } from '../hooks/useFinancialData';
+import { useMemberDragReorder } from '../hooks/useMemberDragReorder';
 import {
   formatBRL, formatDateBR, getCurrentMonthYear, getPreviousMonthYear, getNextMonthYear,
   parseBRL, parseDateBR,
@@ -60,6 +61,7 @@ export function Members() {
   const [bulkDate, setBulkDate] = useState(formatDateBR(new Date().toISOString().slice(0, 10)));
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [bulkError, setBulkError] = useState('');
+  const [orderError, setOrderError] = useState('');
 
   React.useEffect(() => {
     getBillingSettings().then(settings => {
@@ -79,6 +81,7 @@ export function Members() {
   const deletePayment = useDeleteMemberPayment();
   const bulkRecordPayment = useRecordMemberPaymentsBulk();
   const uploadAttachment = useUploadAttachment();
+  const reorderMembers = useReorderMembers();
 
   const filteredMembers = React.useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -102,6 +105,17 @@ export function Members() {
     }
     return options;
   }, [members]);
+
+  const drag = useMemberDragReorder({
+    members: members || [],
+    visibleMembers: filteredMembers,
+    onReorder: orderedIds => {
+      setOrderError('');
+      reorderMembers.mutate(orderedIds, {
+        onError: () => setOrderError('Não foi possível salvar a nova ordem de antiguidade.'),
+      });
+    },
+  });
 
   const pendingStatuses = paymentStatus?.filter(status => !status.paid) || [];
   const paidCount = paymentStatus?.filter(status => status.paid).length || 0;
@@ -444,7 +458,11 @@ export function Members() {
           </Card>
 
           <Card>
-            <CardContent>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-text-muted">
+                Arraste pelo ícone <GripVertical className="inline h-3.5 w-3.5 align-text-bottom" /> para mudar a antiguidade. Com o ícone focado, use ↑ e ↓.
+              </p>
+              {orderError && <p className="text-sm text-danger" role="alert">{orderError}</p>}
               {isLoading ? (
                 <p className="py-8 text-center text-text-muted">Carregando...</p>
               ) : (
@@ -452,6 +470,7 @@ export function Members() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-28">Antiguidade</TableHead>
                         <TableHead>Posto/Grad</TableHead>
                         <TableHead>Nome</TableHead>
                         <TableHead>WhatsApp</TableHead>
@@ -462,11 +481,33 @@ export function Members() {
                     <TableBody>
                       {filteredMembers.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="py-8 text-center text-text-muted">Nenhum integrante encontrado</TableCell>
+                          <TableCell colSpan={6} className="py-8 text-center text-text-muted">Nenhum integrante encontrado</TableCell>
                         </TableRow>
                       ) : (
                         filteredMembers.map(member => (
-                          <TableRow key={member.id}>
+                          <TableRow
+                            key={member.id}
+                            {...drag.rowProps(member.id)}
+                            className={[
+                              drag.draggingId === member.id ? 'opacity-40' : '',
+                              drag.overId === member.id && drag.draggingId !== member.id ? 'bg-info/10 ring-1 ring-inset ring-info' : '',
+                            ].filter(Boolean).join(' ')}
+                          >
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  className="cursor-grab rounded p-1 text-text-muted transition-colors hover:bg-tertiary hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-info active:cursor-grabbing"
+                                  style={{ touchAction: 'none' }}
+                                  aria-label={`Arrastar ${member.name} para mudar a antiguidade`}
+                                  title="Arrastar para reordenar"
+                                  {...drag.handleProps(member.id)}
+                                >
+                                  <GripVertical className="h-4 w-4" />
+                                </button>
+                                <span className="font-mono text-xs text-text-secondary">#{member.ordem}</span>
+                              </div>
+                            </TableCell>
                             <TableCell><Badge variant="info">{militaryRankLabel(member.rank)}</Badge></TableCell>
                             <TableCell className="font-medium">{member.name}</TableCell>
                             <TableCell className={member.phone ? 'text-text-secondary' : 'text-danger'}>
@@ -539,8 +580,8 @@ export function Members() {
         )}
       </Modal>
 
-      <Modal open={!!viewReceiptPaymentId} onOpenChange={() => setViewReceiptPaymentId(null)} title="Comprovantes do pagamento" size="md">
-        <AttachmentList entityType="MEMBER_PAYMENT" entityId={viewReceiptPaymentId || undefined} />
+      <Modal open={!!viewReceiptPaymentId} onOpenChange={() => setViewReceiptPaymentId(null)} title="Comprovante do pagamento" size="xl">
+        <AttachmentList entityType="MEMBER_PAYMENT" entityId={viewReceiptPaymentId || undefined} autoView />
       </Modal>
 
       <Modal open={!!qr} onOpenChange={() => setQr(null)} title={`QR PIX — ${qr?.name || ''}`} size="sm">

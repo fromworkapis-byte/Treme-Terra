@@ -487,11 +487,13 @@ export function useMembers(filters?: MemberFilters) {
 export function useCreateMember() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (member: Omit<Member, 'id' | 'createdAt' | 'updatedAt'>) => {
+    mutationFn: async (member: Omit<Member, 'id' | 'createdAt' | 'updatedAt' | 'ordem'> & { ordem?: number }) => {
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
-      await db.members.add({ ...member, id, createdAt: now, updatedAt: now });
-      return { ...member, id, createdAt: now, updatedAt: now };
+      const lastOrder = (await db.members.orderBy('ordem').last())?.ordem || 0;
+      const ordem = member.ordem ?? lastOrder + 1;
+      await db.members.add({ ...member, ordem, id, createdAt: now, updatedAt: now });
+      return { ...member, ordem, id, createdAt: now, updatedAt: now };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members'] });
@@ -509,6 +511,29 @@ export function useUpdateMember() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members'] });
       queryClient.invalidateQueries({ queryKey: ['memberPaymentStatus'] });
+    },
+  });
+}
+
+export function useReorderMembers() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      await db.transaction('rw', db.members, async () => {
+        const existing = await db.members.toArray();
+        const byId = new Map(existing.map(member => [member.id, member]));
+        const now = new Date().toISOString();
+        const updates = orderedIds.flatMap((id, index) => {
+          const member = byId.get(id);
+          return member ? [{ ...member, ordem: index + 1, updatedAt: now }] : [];
+        });
+        if (updates.length) await db.members.bulkPut(updates);
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['memberPaymentStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }

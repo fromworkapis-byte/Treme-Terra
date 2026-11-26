@@ -13,7 +13,6 @@ import { ALLOWED_MILITARY_RANKS, isAllowedMilitaryRank, militaryRankLabel } from
 const memberSchema = z.object({
   rank: z.string().min(1, 'Post/Grad é obrigatório'),
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
-  ordem: z.number().int().positive('Ordem deve ser um número positivo'),
   phone: z
     .string()
     .optional()
@@ -47,7 +46,6 @@ export function MemberForm({ initialData, onSuccess, onCancel }: MemberFormProps
   const defaultValues: MemberFormData = {
     rank: initialData?.rank || 'SD_RC',
     name: initialData?.name || '',
-    ordem: initialData?.ordem || 1,
     phone: initialData?.phone || '',
     status: initialData?.status || 'ACTIVE',
     joinedAt: formatDateBR(initialData?.joinedAt || new Date().toISOString().slice(0, 10)),
@@ -87,7 +85,6 @@ export function MemberForm({ initialData, onSuccess, onCancel }: MemberFormProps
     const memberData = {
       rank: data.rank as MilitaryRank,
       name: data.name.trim(),
-      ordem: data.ordem,
       phone: data.phone ? maskPhone(data.phone) : undefined,
       status: data.status,
       joinedAt: data.joinedAt.split('/').reverse().join('-'),
@@ -114,7 +111,7 @@ export function MemberForm({ initialData, onSuccess, onCancel }: MemberFormProps
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(handleSubmitForm)} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select
               label="Post/Grad *"
               options={rankOptions}
@@ -128,16 +125,9 @@ export function MemberForm({ initialData, onSuccess, onCancel }: MemberFormProps
               {...register('name')}
               error={errors.name?.message}
             />
-            <Input
-              label="Ordem (Antiguidade) *"
-              type="number"
-              placeholder="1"
-              {...register('ordem', { valueAsNumber: true })}
-              error={errors.ordem?.message}
-            />
           </div>
           <p className="-mt-2 text-xs text-text-muted">
-            Postos permitidos: Soldado Recruta, Soldado Engajado e Cabo. Cadastros antigos com outro posto podem ser mantidos ou convertidos.
+            Postos permitidos: Soldado Recruta, Soldado Engajado e Cabo. Cadastros antigos com outro posto podem ser mantidos ou convertidos. A antiguidade é definida arrastando os integrantes na lista do efetivo.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
