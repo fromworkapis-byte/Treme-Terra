@@ -9,3 +9,4 @@ export { BillingSettingsForm } from './BillingSettingsForm';
 export { ReceiptField } from './ReceiptField';
 export { AttachmentList } from './AttachmentList';
 export { AttachmentViewer } from './AttachmentViewer';
+export { MemberImportForm } from './MemberImportForm';

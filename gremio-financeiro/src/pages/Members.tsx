@@ -3,7 +3,7 @@ import * as React from 'react';
 import { useState } from 'react';
 import {
   Plus, Search, Edit, Trash, ChevronLeft, ChevronRight, Camera, QrCode, Send,
-  AlertCircle, CheckCircle, X, Paperclip, ListChecks, Loader2, GripVertical,
+  AlertCircle, CheckCircle, X, Paperclip, ListChecks, Loader2, GripVertical, Upload,
 } from 'lucide-react';
 import {
   Button, Input, Select, Badge, Card, CardContent, Table, TableHeader, TableBody,
@@ -21,7 +21,7 @@ import {
   parseBRL, parseDateBR,
 } from '../db';
 import {
-  AttachmentList, MemberForm, ReceiptField, ReceiptPaymentForm,
+  AttachmentList, MemberForm, MemberImportForm, ReceiptField, ReceiptPaymentForm,
 } from '../components/forms';
 import { buildCharge, getBillingSettings, monthLabel, sendMonthlyCharges } from '../lib/billing';
 import { buildPixQr } from '../lib/pix';
@@ -45,6 +45,7 @@ export function Members() {
   const [selectedStatus, setSelectedStatus] = useState<'ACTIVE' | 'INACTIVE' | ''>('');
   const [selectedRank, setSelectedRank] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [deletingMember, setDeletingMember] = useState<Member | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthYear());
@@ -225,6 +226,9 @@ export function Members() {
         description={`Acompanhe e registre os pagamentos de ${monthLabel(selectedMonth)}.`}
         actions={
           <>
+            <Button variant="outline" onClick={() => setShowImport(true)}>
+              <Upload className="mr-2 h-4 w-4" /> Importar lista
+            </Button>
             <Button variant="outline" onClick={handleSendCharges} disabled={sending}>
               <Send className="mr-2 h-4 w-4" /> {sending ? 'Enviando...' : 'Enviar cobranças'}
             </Button>
@@ -543,6 +547,13 @@ export function Members() {
           initialData={editingMember || undefined}
           onSuccess={() => setShowForm(false)}
           onCancel={() => setShowForm(false)}
+        />
+      </Modal>
+
+      <Modal open={showImport} onOpenChange={setShowImport} title="Importar lista de integrantes" size="lg">
+        <MemberImportForm
+          onSuccess={count => setMessage(`${count} integrante(s) cadastrado(s) no efetivo.`)}
+          onCancel={() => setShowImport(false)}
         />
       </Modal>
 

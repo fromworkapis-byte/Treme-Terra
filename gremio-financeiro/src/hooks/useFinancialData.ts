@@ -5,6 +5,7 @@ import {
   addAttachment, getAttachments, deleteAttachment, recordMemberPayment, recordMemberPayments,
 } from '../db';
 import { fileToDataUrl } from '../lib/attachment';
+import type { ParsedMember } from '../lib/memberImport';
 import type {
   Entry, Expense, Transfer, Account, Category, Member, MemberPayment, FinancialFilters,
   MemberFilters, User, UserRole, EntityType,
@@ -511,6 +512,36 @@ export function useUpdateMember() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members'] });
       queryClient.invalidateQueries({ queryKey: ['memberPaymentStatus'] });
+    },
+  });
+}
+
+export function useCreateMembersBulk() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (parsed: ParsedMember[]) => {
+      return db.transaction('rw', db.members, async () => {
+        let ordem = ((await db.members.orderBy('ordem').last())?.ordem || 0) + 1;
+        const now = new Date().toISOString();
+        const records: Member[] = parsed.map(member => ({
+          id: crypto.randomUUID(),
+          rank: member.rank,
+          name: member.name,
+          phone: member.phone,
+          ordem: ordem++,
+          status: 'ACTIVE',
+          joinedAt: now.slice(0, 10),
+          createdAt: now,
+          updatedAt: now,
+        }));
+        await db.members.bulkAdd(records);
+        return records.length;
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['memberPaymentStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }
