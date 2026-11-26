@@ -69,7 +69,7 @@ export function Members() {
   const [viewReceiptPaymentId, setViewReceiptPaymentId] = useState<string | null>(null);
   const [qr, setQr] = useState<{ name: string; dataUrl: string; payload: string } | null>(null);
   const [message, setMessage] = useState('');
-  const [activeTab, setActiveTab] = useState('contributions');
+  const [editMode, setEditMode] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [monthlyAmount, setMonthlyAmount] = useState(2000);
 
@@ -89,7 +89,7 @@ export function Members() {
   React.useEffect(() => {
     setSelectedPendingIds([]);
     setBulkError('');
-  }, [selectedMonth]);
+  }, [selectedMonth, search, selectedStatus, selectedRank]);
 
   const { data: members, isLoading } = useMembers();
   const { data: paymentStatus, isLoading: statusLoading } = useMemberPaymentStatus(selectedMonth);
@@ -133,11 +133,16 @@ export function Members() {
     },
   });
 
-  const pendingStatuses = paymentStatus?.filter(status => !status.paid) || [];
+  const visibleMemberIds = React.useMemo(() => new Set(filteredMembers.map(member => member.id)), [filteredMembers]);
+  const visiblePaymentStatuses = React.useMemo(
+    () => (paymentStatus || []).filter(status => visibleMemberIds.has(status.member.id)),
+    [paymentStatus, visibleMemberIds],
+  );
+  const pendingStatuses = visiblePaymentStatuses.filter(status => !status.paid);
   const paidCount = paymentStatus?.filter(status => status.paid).length || 0;
-  const pendingCount = pendingStatuses.length;
+  const pendingCount = paymentStatus?.filter(status => !status.paid).length || 0;
   const collected = paymentStatus?.reduce((total, status) => total + status.amount, 0) || 0;
-  const allPendingSelected = pendingCount > 0 && selectedPendingIds.length === pendingCount;
+  const allPendingSelected = pendingStatuses.length > 0 && selectedPendingIds.length === pendingStatuses.length;
   const activeFilterCount = [search.trim(), selectedStatus, selectedRank].filter(Boolean).length;
 
   const handleGenerateCharge = async () => {
@@ -242,9 +247,6 @@ export function Members() {
         description={`Acompanhe e registre os pagamentos de ${monthLabel(selectedMonth)}.`}
         actions={
           <>
-            <Button variant="outline" onClick={() => { setActiveTab('list'); setShowFilters(true); }}>
-              <Filter className="mr-2 h-4 w-4" /> Filtrar efetivo
-            </Button>
             <Button variant="outline" onClick={() => setShowImport(true)}>
               <Upload className="mr-2 h-4 w-4" /> Importar lista
             </Button>
@@ -308,14 +310,67 @@ export function Members() {
         </CardContent>
       </Card>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="contributions">Pagamentos do mês</TabsTrigger>
-          <TabsTrigger value="list">Cadastro do efetivo</TabsTrigger>
+      <Tabs value="contributions" className="w-full">
+        <TabsList className="grid w-full grid-cols-1">
+          <TabsTrigger value="contributions">Efetivo</TabsTrigger>
         </TabsList>
 
         <TabsContent value="contributions" className="space-y-4">
-          {pendingCount > 0 && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Input
+                  placeholder="Buscar por nome ou posto..."
+                  value={search}
+                  onChange={event => setSearch(event.target.value)}
+                  className="sm:max-w-sm"
+                />
+                <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+                  {activeFilterCount > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setSearch(''); setSelectedStatus(''); setSelectedRank(''); }}
+                    >
+                      <X className="mr-1 h-4 w-4" /> Limpar filtros
+                    </Button>
+                  )}
+                  <Button type="button" variant="outline" size="sm" onClick={() => setShowFilters(value => !value)}>
+                    <Filter className="mr-2 h-4 w-4" />
+                    Filtrar{activeFilterCount ? ` (${activeFilterCount})` : ''}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={editMode ? 'primary' : 'outline'}
+                    size="sm"
+                    onClick={() => setEditMode(value => !value)}
+                  >
+                    <Edit className="mr-2 h-4 w-4" />
+                    {editMode ? 'Concluir edição' : 'Editar efetivo'}
+                  </Button>
+                </div>
+              </div>
+              {showFilters && (
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Select
+                    label="Status"
+                    options={[{ value: '', label: 'Todos' }, { value: 'ACTIVE', label: 'Ativos' }, { value: 'INACTIVE', label: 'Inativos' }]}
+                    value={selectedStatus}
+                    onChange={event => setSelectedStatus(event.target.value as 'ACTIVE' | 'INACTIVE' | '')}
+                  />
+                  <Select
+                    label="Posto/Grad"
+                    options={[{ value: '', label: 'Todos' }, ...rankOptions]}
+                    value={selectedRank}
+                    onChange={event => setSelectedRank(event.target.value)}
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {!editMode && pendingStatuses.length > 0 && (
             <Card>
               <CardContent className="pt-6">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -356,9 +411,10 @@ export function Members() {
             </Card>
           )}
 
-          <Card>
-            <CardContent className="pt-6">
-              {statusLoading ? (
+          {!editMode && (
+            <Card>
+              <CardContent className="pt-6">
+                {statusLoading ? (
                 <p className="py-8 text-center text-text-muted">Carregando...</p>
               ) : (
                 <ScrollArea className="h-[520px]">
@@ -368,7 +424,7 @@ export function Members() {
                         <TableHead className="w-10">
                           <Checkbox
                             checked={allPendingSelected}
-                            disabled={pendingCount === 0}
+                            disabled={pendingStatuses.length === 0}
                             onCheckedChange={checked => setSelectedPendingIds(checked ? pendingStatuses.map(status => status.member.id) : [])}
                             aria-label="Selecionar todos os pendentes"
                           />
@@ -381,14 +437,16 @@ export function Members() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(paymentStatus?.length || 0) === 0 ? (
+                      {visiblePaymentStatuses.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={6} className="py-8 text-center text-text-muted">
-                            Nenhum integrante ativo. Cadastre o efetivo para acompanhar as mensalidades.
+                            {activeFilterCount > 0
+                              ? 'Nenhum integrante encontrado com esses filtros.'
+                              : 'Nenhum integrante ativo. Cadastre o efetivo para acompanhar as mensalidades.'}
                           </TableCell>
                         </TableRow>
                       ) : (
-                        paymentStatus?.map(status => (
+                        visiblePaymentStatuses.map(status => (
                           <TableRow key={status.member.id}>
                             <TableCell>
                               <Checkbox
@@ -447,60 +505,13 @@ export function Members() {
                   </Table>
                 </ScrollArea>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+              </CardContent>
+            </Card>
+          )}
 
-        <TabsContent value="list" className="space-y-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm font-medium text-text-primary">Filtros do efetivo</p>
-                <div className="flex flex-wrap items-center gap-2">
-                  {activeFilterCount > 0 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => { setSearch(''); setSelectedStatus(''); setSelectedRank(''); }}
-                    >
-                      <X className="mr-1 h-4 w-4" /> Limpar filtros
-                    </Button>
-                  )}
-                  {showFilters && (
-                    <Button type="button" variant="outline" size="sm" onClick={() => setShowFilters(false)}>
-                      Ocultar filtros
-                    </Button>
-                  )}
-                </div>
-              </div>
-              {showFilters && (
-                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <Input
-                    placeholder="Buscar por nome ou posto..."
-                    value={search}
-                    onChange={event => setSearch(event.target.value)}
-                    className="lg:col-span-2"
-                  />
-                  <Select
-                    label="Status"
-                    options={[{ value: '', label: 'Todos' }, { value: 'ACTIVE', label: 'Ativos' }, { value: 'INACTIVE', label: 'Inativos' }]}
-                    value={selectedStatus}
-                    onChange={event => setSelectedStatus(event.target.value as 'ACTIVE' | 'INACTIVE' | '')}
-                  />
-                  <Select
-                    label="Posto/Grad"
-                    options={[{ value: '', label: 'Todos' }, ...rankOptions]}
-                    value={selectedRank}
-                    onChange={event => setSelectedRank(event.target.value)}
-                  />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="space-y-3">
+          {editMode && (
+            <Card>
+              <CardContent className="space-y-3">
               <p className="text-xs text-text-muted">
                 Arraste pelo ícone <GripVertical className="inline h-3.5 w-3.5 align-text-bottom" /> para mudar a antiguidade. Com o ícone focado, use ↑ e ↓.
               </p>
@@ -575,8 +586,9 @@ export function Members() {
                   </Table>
                 </ScrollArea>
               )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 
