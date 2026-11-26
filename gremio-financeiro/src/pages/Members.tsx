@@ -2,8 +2,8 @@
 import * as React from 'react';
 import { useState } from 'react';
 import {
-  Plus, Search, Edit, Trash, ChevronLeft, ChevronRight, Camera, QrCode, Send,
-  AlertCircle, CheckCircle, X, Paperclip, ListChecks, Loader2, GripVertical, Upload,
+  Plus, Search, Edit, Trash, ChevronLeft, ChevronRight, Camera, QrCode,
+  AlertCircle, CheckCircle, X, Paperclip, ListChecks, Loader2, GripVertical, Upload, Filter, Clipboard,
 } from 'lucide-react';
 import {
   Button, Input, Select, Badge, Card, CardContent, Table, TableHeader, TableBody,
@@ -23,7 +23,7 @@ import {
 import {
   AttachmentList, MemberForm, MemberImportForm, ReceiptField, ReceiptPaymentForm,
 } from '../components/forms';
-import { buildCharge, getBillingSettings, monthLabel, sendMonthlyCharges } from '../lib/billing';
+import { buildCharge, buildGroupCharge, getBillingSettings, monthLabel } from '../lib/billing';
 import { buildPixQr } from '../lib/pix';
 import { CURRENT_USER } from '../lib/currentUser';
 import type { Member } from '../types';
@@ -40,6 +40,10 @@ function amountInput(cents: number) {
   return (cents / 100).toFixed(2).replace('.', ',');
 }
 
+function rankBadgeVariant(rank: string): 'success' | 'warning' {
+  return rank === 'CB' ? 'success' : 'warning';
+}
+
 export function Members() {
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<'ACTIVE' | 'INACTIVE' | ''>('');
@@ -54,13 +58,12 @@ export function Members() {
   const [viewReceiptPaymentId, setViewReceiptPaymentId] = useState<string | null>(null);
   const [qr, setQr] = useState<{ name: string; dataUrl: string; payload: string } | null>(null);
   const [message, setMessage] = useState('');
-  const [sending, setSending] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [monthlyAmount, setMonthlyAmount] = useState(2000);
 
   const [selectedPendingIds, setSelectedPendingIds] = useState<string[]>([]);
   const [bulkAmount, setBulkAmount] = useState(amountInput(2000));
   const [bulkDate, setBulkDate] = useState(formatDateBR(new Date().toISOString().slice(0, 10)));
-  const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [bulkError, setBulkError] = useState('');
   const [orderError, setOrderError] = useState('');
 
@@ -123,24 +126,21 @@ export function Members() {
   const pendingCount = pendingStatuses.length;
   const collected = paymentStatus?.reduce((total, status) => total + status.amount, 0) || 0;
   const allPendingSelected = pendingCount > 0 && selectedPendingIds.length === pendingCount;
+  const activeFilterCount = [search.trim(), selectedStatus, selectedRank].filter(Boolean).length;
 
-  const handleSendCharges = async () => {
+  const handleGenerateCharge = async () => {
     setMessage('');
-    setSending(true);
     try {
       const settings = await getBillingSettings();
-      const state = await sendMonthlyCharges(selectedMonth, settings, { force: false });
-      const entries = state.log.filter(entry => entry.month === selectedMonth);
-      const failures = entries.filter(entry => !entry.ok);
-      setMessage(
-        entries.length === 0
-          ? 'Nenhuma cobrança nova para enviar neste mês.'
-          : `Cobranças processadas: ${entries.length - failures.length} enviadas, ${failures.length} falhas.`,
-      );
+      const { message: chargeText } = buildGroupCharge({
+        monthYear: selectedMonth,
+        description: settings.chargeDescription,
+        amountCents: settings.monthlyAmount,
+      });
+      await navigator.clipboard.writeText(chargeText);
+      setMessage(`Texto da cobrança de ${monthLabel(selectedMonth)} copiado. Cole no WhatsApp e anexe o QR Code.`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Não foi possível enviar as cobranças');
-    } finally {
-      setSending(false);
+      setMessage(error instanceof Error ? error.message : 'Não foi possível copiar a cobrança');
     }
   };
 
@@ -189,24 +189,12 @@ export function Members() {
         monthYear: selectedMonth,
         amount: amountCents,
         date: parseDateBR(bulkDate),
-        notes: bulkFile ? `Comprovante: ${bulkFile.name}` : 'Pagamento registrado em lote',
+        notes: 'Pagamento registrado em lote',
         recordedById: CURRENT_USER.id,
       });
 
-      if (bulkFile) {
-        for (const paymentId of paymentIds) {
-          await uploadAttachment.mutateAsync({
-            file: bulkFile,
-            entityType: 'MEMBER_PAYMENT',
-            entityId: paymentId,
-            uploadedById: CURRENT_USER.id,
-          });
-        }
-      }
-
       setMessage(`${paymentIds.length} pagamento(s) registrado(s) em ${monthLabel(selectedMonth)}.`);
       setSelectedPendingIds([]);
-      setBulkFile(null);
     } catch (error) {
       setBulkError(error instanceof Error ? error.message : 'Não foi possível registrar os pagamentos');
     }
@@ -229,8 +217,8 @@ export function Members() {
             <Button variant="outline" onClick={() => setShowImport(true)}>
               <Upload className="mr-2 h-4 w-4" /> Importar lista
             </Button>
-            <Button variant="outline" onClick={handleSendCharges} disabled={sending}>
-              <Send className="mr-2 h-4 w-4" /> {sending ? 'Enviando...' : 'Enviar cobranças'}
+            <Button variant="outline" onClick={handleGenerateCharge}>
+              <Clipboard className="mr-2 h-4 w-4" /> Gerar cobrança
             </Button>
             <Button variant="primary" onClick={() => { setEditingMember(null); setShowForm(true); }}>
               <Plus className="mr-2 h-4 w-4" /> Novo integrante
@@ -313,23 +301,18 @@ export function Members() {
                     Selecionar todos os pendentes
                   </Button>
                 </div>
-                <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_minmax(180px,1.2fr)_auto]">
+                <div className="mx-auto grid max-w-3xl grid-cols-1 items-end justify-center gap-4 sm:grid-cols-2 md:grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_auto]">
                   <Input
                     label="Valor por integrante (R$)"
                     inputMode="decimal"
                     value={bulkAmount}
                     onChange={event => setBulkAmount(event.target.value)}
+                    className="text-center"
                     hint={`Padrão: ${formatBRL(monthlyAmount)}. Digite outro valor se houver atraso.`}
                   />
-                  <DatePicker label="Data do pagamento" value={bulkDate} onChange={event => setBulkDate(event.target.value)} />
-                  <ReceiptField
-                    compact
-                    label="Comprovante (opcional)"
-                    file={bulkFile}
-                    onFileChange={setBulkFile}
-                  />
-                  <Button type="button" variant="success" onClick={handleBulkPay} disabled={bulkRecordPayment.isPending || uploadAttachment.isPending}>
-                    {bulkRecordPayment.isPending || uploadAttachment.isPending ? (
+                  <DatePicker label="Data do pagamento" value={bulkDate} onChange={event => setBulkDate(event.target.value)} className="text-center" />
+                  <Button type="button" variant="success" onClick={handleBulkPay} disabled={bulkRecordPayment.isPending}>
+                    {bulkRecordPayment.isPending ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : null}
                     Marcar como pagos ({selectedPendingIds.length})
@@ -382,7 +365,7 @@ export function Members() {
                                 aria-label={`Selecionar ${status.member.name}`}
                               />
                             </TableCell>
-                            <TableCell><Badge variant="info">{militaryRankLabel(status.member.rank)}</Badge></TableCell>
+                            <TableCell><Badge variant={rankBadgeVariant(status.member.rank)}>{militaryRankLabel(status.member.rank)}</Badge></TableCell>
                             <TableCell className="font-medium">{status.member.name}</TableCell>
                             <TableCell>
                               {status.paid ? <Badge variant="success">Pago</Badge> : <Badge variant="danger">Falta pagar</Badge>}
@@ -438,26 +421,47 @@ export function Members() {
         <TabsContent value="list" className="space-y-4">
           <Card>
             <CardContent className="pt-6">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <Input
-                  placeholder="Buscar por nome ou posto..."
-                  value={search}
-                  onChange={event => setSearch(event.target.value)}
-                  className="lg:col-span-2"
-                />
-                <Select
-                  label="Status"
-                  options={[{ value: '', label: 'Todos' }, { value: 'ACTIVE', label: 'Ativos' }, { value: 'INACTIVE', label: 'Inativos' }]}
-                  value={selectedStatus}
-                  onChange={event => setSelectedStatus(event.target.value as 'ACTIVE' | 'INACTIVE' | '')}
-                />
-                <Select
-                  label="Posto/Grad"
-                  options={[{ value: '', label: 'Todos' }, ...rankOptions]}
-                  value={selectedRank}
-                  onChange={event => setSelectedRank(event.target.value)}
-                />
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm font-medium text-text-primary">Filtros do efetivo</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {activeFilterCount > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setSearch(''); setSelectedStatus(''); setSelectedRank(''); }}
+                    >
+                      <X className="mr-1 h-4 w-4" /> Limpar filtros
+                    </Button>
+                  )}
+                  <Button type="button" variant="outline" size="sm" onClick={() => setShowFilters(value => !value)}>
+                    <Filter className="mr-2 h-4 w-4" />
+                    {showFilters ? 'Ocultar filtros' : `Filtrar${activeFilterCount ? ` (${activeFilterCount})` : ''}`}
+                  </Button>
+                </div>
               </div>
+              {showFilters && (
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <Input
+                    placeholder="Buscar por nome ou posto..."
+                    value={search}
+                    onChange={event => setSearch(event.target.value)}
+                    className="lg:col-span-2"
+                  />
+                  <Select
+                    label="Status"
+                    options={[{ value: '', label: 'Todos' }, { value: 'ACTIVE', label: 'Ativos' }, { value: 'INACTIVE', label: 'Inativos' }]}
+                    value={selectedStatus}
+                    onChange={event => setSelectedStatus(event.target.value as 'ACTIVE' | 'INACTIVE' | '')}
+                  />
+                  <Select
+                    label="Posto/Grad"
+                    options={[{ value: '', label: 'Todos' }, ...rankOptions]}
+                    value={selectedRank}
+                    onChange={event => setSelectedRank(event.target.value)}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -512,7 +516,7 @@ export function Members() {
                                 <span className="font-mono text-xs text-text-secondary">#{member.ordem}</span>
                               </div>
                             </TableCell>
-                            <TableCell><Badge variant="info">{militaryRankLabel(member.rank)}</Badge></TableCell>
+                            <TableCell><Badge variant={rankBadgeVariant(member.rank)}>{militaryRankLabel(member.rank)}</Badge></TableCell>
                             <TableCell className="font-medium">{member.name}</TableCell>
                             <TableCell className={member.phone ? 'text-text-secondary' : 'text-danger'}>
                               {member.phone || 'Não informado'}

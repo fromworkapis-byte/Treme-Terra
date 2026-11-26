@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Save, Send, AlertCircle, Copy, Download, QrCode } from 'lucide-react';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Select, Switch } from '../ui';
 import {
-  getBillingSettings, getBillingState, monthLabel, saveBillingSettings, sendMonthlyCharges,
+  buildGroupCharge, getBillingSettings, getBillingState, monthLabel, saveBillingSettings, sendMonthlyCharges,
   type BillingSettings,
 } from '../../lib/billing';
 import { formatBRL, getCurrentMonthYear, parseBRL } from '../../db';
@@ -28,6 +28,7 @@ export function BillingSettingsForm() {
     Promise.all([getBillingSettings(), getBillingState()]).then(([loadedSettings, state]) => {
       setSettings(loadedSettings);
       setAmount((loadedSettings.monthlyAmount / 100).toFixed(2).replace('.', ','));
+      setChargeDescription(loadedSettings.chargeDescription);
       setLastSentMonth(state.lastSentMonth);
       setLog(state.log.slice(0, 8));
     });
@@ -44,8 +45,10 @@ export function BillingSettingsForm() {
     try {
       const monthlyAmount = parseBRL(amount);
       if (monthlyAmount <= 0) throw new Error('Informe um valor maior que zero');
-      await saveBillingSettings({ ...settings, monthlyAmount });
-      setSettings({ ...settings, monthlyAmount });
+      if (!chargeDescription.trim()) throw new Error('Informe a descrição da cobrança.');
+      const updated = { ...settings, monthlyAmount, chargeDescription: chargeDescription.trim() };
+      await saveBillingSettings(updated);
+      setSettings(updated);
       setMessage('Configuração salva.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Não foi possível salvar');
@@ -85,6 +88,11 @@ export function BillingSettingsForm() {
       if (!chargeDescription.trim()) throw new Error('Informe a descrição da cobrança.');
 
       const monthYear = getCurrentMonthYear();
+      const { txid, message } = buildGroupCharge({
+        monthYear,
+        description: chargeDescription,
+        amountCents: monthlyAmount,
+      });
       const payload = buildPixPayload({
         config: {
           key: settings.pixKey,
@@ -93,21 +101,12 @@ export function BillingSettingsForm() {
           merchantCity: settings.merchantCity,
         },
         amountCents: monthlyAmount,
-        txid: `GRM${monthYear.replace(/-/g, '')}`,
+        txid,
         description: chargeDescription.trim(),
       });
       const generatedQr = await buildPixQr(payload);
       setQrCode(generatedQr);
-      setGroupMessage([
-        `📣 *${chargeDescription.trim()}*`,
-        `Mês de referência: *${monthLabel(monthYear)}*`,
-        '',
-        `*Valor: ${formatBRL(monthlyAmount)}*`,
-        '',
-        'Pague pelo QR Code PIX anexo ou pelo botão de PIX no WhatsApp.',
-        '',
-        '✅ *Após pagar, envie o comprovante de volta por aqui* para registrarmos no grêmio.',
-      ].join('\n'));
+      setGroupMessage(message);
       setChargeMessage('Cobrança gerada. Baixe o QR Code e anexe-o junto com a mensagem no grupo.');
     } catch (error) {
       setChargeMessage(error instanceof Error ? error.message : 'Não foi possível gerar a cobrança.');

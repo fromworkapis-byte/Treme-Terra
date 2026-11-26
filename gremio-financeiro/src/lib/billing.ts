@@ -10,6 +10,7 @@ export interface BillingSettings {
   merchantName: string;
   merchantCity: string;
   monthlyAmount: number; // centavos
+  chargeDescription: string;
   whatsappApiUrl: string;
   whatsappApiKey: string;
   whatsappInstance: string;
@@ -36,6 +37,7 @@ export const DEFAULT_BILLING: BillingSettings = {
   merchantName: '1 CFZ TREME TERRA',
   merchantCity: 'TREME TERRA',
   monthlyAmount: 2000,
+  chargeDescription: 'Mensalidade do Grêmio',
   whatsappApiUrl: '',
   whatsappApiKey: '',
   whatsappInstance: '',
@@ -76,6 +78,27 @@ export function monthLabel(monthYear: string): string {
   const [year, month] = monthYear.split('-');
   const names = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   return `${names[Number(month) - 1] || month}/${year}`;
+}
+
+/** Texto único da cobrança em grupo, usado na geração e na cópia pelo efetivo. */
+export function buildGroupCharge({ monthYear, description, amountCents }: {
+  monthYear: string;
+  description: string;
+  amountCents: number;
+}) {
+  return {
+    txid: `GRM${monthYear.replace(/-/g, '')}`,
+    message: [
+      `📣 *${description.trim()}*`,
+      `Mês de referência: *${monthLabel(monthYear)}*`,
+      '',
+      `*Valor: ${formatBRL(amountCents)}*`,
+      '',
+      'Pague pelo QR Code PIX anexo ou pelo botão de PIX no WhatsApp.',
+      '',
+      '✅ *Após pagar, envie o comprovante de volta por aqui* para registrarmos no grêmio.',
+    ].join('\n'),
+  };
 }
 
 export function buildCharge(memberId: string, monthYear: string, settings: BillingSettings) {
