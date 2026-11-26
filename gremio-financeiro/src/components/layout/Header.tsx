@@ -1,15 +1,13 @@
 // ===== HEADER COMPONENT =====
 import * as React from 'react';
 import { useState } from 'react';
-import { Search, Bell, LogOut, Key, ChevronDown } from 'lucide-react';
-import { Button, Input, Avatar, AvatarFallback, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '../ui';
-import { useAuth } from '../../context/AuthContext';
+import { Search, Bell } from 'lucide-react';
+import { Button, Input, Avatar, AvatarFallback, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator } from '../ui';
+import { CURRENT_USER } from '../../lib/currentUser';
 import { MobileMenuButton } from './Sidebar';
 
 export function Header({ onMenuClick }: { onMenuClick: () => void }) {
-  const { user, logout, hasPermission } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +20,7 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
       {/* Left: Menu + Search */}
       <div className="flex items-center gap-4 flex-1">
         <MobileMenuButton onClick={onMenuClick} />
-        
+
         <form onSubmit={handleSearch} className="relative w-full max-w-md hidden md:block flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" aria-hidden="true" />
           <Input
@@ -36,9 +34,8 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
         </form>
       </div>
 
-      {/* Right: Notifications + User Menu */}
-      <div className="flex items-center gap-2">
-        {/* Notifications */}
+      {/* Right: Notifications + User */}
+      <div className="flex items-center gap-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative p-2 rounded-lg hover:bg-tertiary text-text-secondary transition-colors">
@@ -55,40 +52,17 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* User Menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-lg hover:bg-tertiary transition-colors">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="text-sm font-medium bg-info/10 text-info">
-                  {user?.name?.charAt(0) || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <span className="hidden sm:block text-sm font-medium text-text-primary">{user?.name || 'Usuário'}</span>
-              <ChevronDown className="w-4 h-4 text-text-muted" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium text-text-primary">{user?.name}</p>
-                <p className="text-xs text-text-muted capitalize">{user?.role?.toLowerCase()}</p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {hasPermission(['ADMIN']) && (
-              <DropdownMenuItem onClick={() => console.log('Configurações')}>
-                <Key className="w-4 h-4 mr-2" />
-                Trocar Senha
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={logout} className="text-danger focus:text-danger">
-              <LogOut className="w-4 h-4 mr-2" />
-              Sair
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-2">
+          <Avatar className="h-8 w-8">
+            <AvatarFallback className="text-sm font-medium bg-info/10 text-info">
+              {CURRENT_USER.name.charAt(0)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="hidden sm:block leading-tight">
+            <p className="text-sm font-medium text-text-primary">{CURRENT_USER.name}</p>
+            <p className="text-xs text-text-muted capitalize">{CURRENT_USER.role.toLowerCase()}</p>
+          </div>
+        </div>
       </div>
     </header>
   );

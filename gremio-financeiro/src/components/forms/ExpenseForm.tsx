@@ -10,7 +10,7 @@ import {
 import {
   useCategories, useAccounts, useCreateExpense, useUpdateExpense, useUploadAttachment,
 } from '../../hooks/useFinancialData';
-import { useAuth } from '../../context/AuthContext';
+import { CURRENT_USER } from '../../lib/currentUser';
 import { formatDateBR, getCurrentMonthYear, parseBRL } from '../../db';
 import { analyzeExpenseReceipt, readReceipt } from '../../lib/receipt';
 import type { Expense, Category, Account } from '../../types';
@@ -50,7 +50,6 @@ export function ExpenseForm({ initialData, categories, accounts, onSuccess, onCa
   const createExpense = useCreateExpense();
   const updateExpense = useUpdateExpense();
   const uploadAttachment = useUploadAttachment();
-  const { user } = useAuth();
 
   const [receiptFile, setReceiptFile] = React.useState<File | null>(null);
   const [reading, setReading] = React.useState(false);
@@ -130,7 +129,7 @@ export function ExpenseForm({ initialData, categories, accounts, onSuccess, onCa
       amount: parseBRL(data.amount),
       paymentMethod: data.paymentMethod as Expense['paymentMethod'],
       accountId: data.accountId,
-      createdById: user?.id || 'admin-001',
+      createdById: CURRENT_USER.id,
       beneficiary: data.beneficiary || undefined,
       receiptNumber: data.receiptNumber || undefined,
       notes: data.notes,
@@ -151,7 +150,7 @@ export function ExpenseForm({ initialData, categories, accounts, onSuccess, onCa
           file: receiptFile,
           entityType: 'EXPENSE',
           entityId: expenseId,
-          uploadedById: user?.id,
+          uploadedById: CURRENT_USER.id,
         });
       }
 

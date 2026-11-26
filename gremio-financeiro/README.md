@@ -56,9 +56,9 @@ Sistema completo de gestão financeira para controle do grêmio militar, com das
 - Motivo obrigatório para exclusões
 
 ### ⚙️ Configurações
-- Gerenciamento de contas, categorias, usuários (admin)
+- Gerenciamento de contas, categorias e efetivo
 - Backup/Restore completo (JSON)
-- Alteração de senha
+- Acesso direto, sem tela de login
 - Tema dark obrigatório
 
 ---
@@ -144,16 +144,11 @@ npm run build
 
 ---
 
-## 🔐 Credenciais Iniciais
+## 🔐 Acesso ao Sistema
 
-| Campo | Valor |
-|-------|-------|
-| **Email** | `admin@gremio.local` |
-| **Senha** | `Gremio@2026!Admin` |
-| **Função** | ADMIN |
+Não há tela de login: ao abrir a URL, o sistema entra direto como **Administrador do Sistema**. Todas as operações são atribuídas a esse usuário local.
 
-> ⚠️ **OBRIGATÓRIO**: Trocar a senha no primeiro acesso!
-> O sistema força a troca de senha na primeira entrada.
+> ⚠️ Qualquer pessoa com acesso à URL pode consultar e alterar os dados. Use apenas em ambiente controlado.
 
 ---
 
@@ -169,12 +164,12 @@ gremio-financeiro/
 │   │   ├── layout/       # Sidebar, Header, MainLayout
 │   │   ├── charts/       # AreaChart, BarChart, DonutChart, LineChart
 │   │   └── forms/        # EntryForm, ExpenseForm, TransferForm, MemberForm, AccountForm, CategoryForm
-│   ├── context/
-│   │   └── AuthContext.tsx
 │   ├── db/
 │   │   └── index.ts      # Dexie.js + Seed + Helpers
 │   ├── hooks/
 │   │   └── useFinancialData.ts  # TanStack Query hooks
+│   ├── lib/
+│   │   └── currentUser.ts # Identidade local (sem login)
 │   ├── pages/
 │   │   ├── Dashboard.tsx
 │   │   ├── Entries.tsx
@@ -184,10 +179,7 @@ gremio-financeiro/
 │   │   ├── Members.tsx
 │   │   ├── Reports.tsx
 │   │   ├── Audit.tsx
-│   │   ├── Settings.tsx
-│   │   ├── LoginPage.tsx
-│   │   ├── FirstAccessPage.tsx
-│   │   └── ProtectedRoute.tsx
+│   │   └── Settings.tsx
 │   ├── types/
 │   │   └── index.ts      # TypeScript interfaces
 │   ├── utils/
@@ -293,10 +285,6 @@ npm run typecheck # TypeScript check
 - Limpar cache do navegador (Ctrl+Shift+Delete)
 - Verificar console (F12) para erros
 - Tentar em aba anônima
-
-### "Senha incorreta no primeiro acesso"
-- Verificar se está digitando exatamente: `Gremio@2026!Admin`
-- Maiúsculas/minúsculas e caracteres especiais importam
 
 ### "Gráficos não aparecem"
 - Verificar se há dados no período selecionado

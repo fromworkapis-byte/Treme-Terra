@@ -17,13 +17,12 @@ import {
   Menu,
 } from 'lucide-react';
 import { Button } from '../ui';
-import { useAuth } from '../../context/AuthContext';
+import { CURRENT_USER } from '../../lib/currentUser';
 
 interface NavItem {
   id: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  roles?: string[];
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -34,8 +33,8 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'accounts', label: 'Contas e Caixa', icon: Wallet },
   { id: 'members', label: 'Efetivo', icon: Users },
   { id: 'reports', label: 'Relatórios', icon: FileText },
-  { id: 'audit', label: 'Auditoria', icon: Shield, roles: ['ADMIN', 'TREASURER'] },
-  { id: 'settings', label: 'Configurações', icon: Settings, roles: ['ADMIN'] },
+  { id: 'audit', label: 'Auditoria', icon: Shield },
+  { id: 'settings', label: 'Configurações', icon: Settings },
 ];
 
 interface SidebarProps {
@@ -44,10 +43,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
-  const { user } = useAuth();
   const [collapsed, setCollapsed] = React.useState(false);
-
-  const filteredNavItems = NAV_ITEMS.filter(item => !item.roles || (user && item.roles.includes(user.role)));
 
   return (
     <>
@@ -95,7 +91,7 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto" aria-label="Navegação principal">
-          {filteredNavItems.map((item) => (
+          {NAV_ITEMS.map((item) => (
             <NavLink
               key={item.id}
               to={`/${item.id}`}
@@ -135,8 +131,8 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
                   <Users className="w-4 h-4 text-text-secondary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary truncate">{user?.name || 'Usuário'}</p>
-                  <p className="text-xs text-text-muted truncate capitalize">{user?.role?.toLowerCase() || 'visualizador'}</p>
+                  <p className="text-sm font-medium text-text-primary truncate">{CURRENT_USER.name}</p>
+                  <p className="text-xs text-text-muted truncate capitalize">{CURRENT_USER.role.toLowerCase()}</p>
                 </div>
               </div>
               <Button

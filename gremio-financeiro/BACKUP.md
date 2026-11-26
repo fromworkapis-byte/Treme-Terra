@@ -279,7 +279,7 @@ Exemplos:
 - [ ] Ambiente de teste: [ ] Navegador anônimo  [ ] Outro PC  [ ] VM
 - [ ] Restauração realizada sem erros
 - [ ] Dados verificados:
-  - [ ] Usuários (login funciona)
+  - [ ] Usuários (registros preservados)
   - [ ] Efetivo (contagem correta)
   - [ ] Contas (saldos corretos)
   - [ ] Entradas/Despesas (totais batem)
@@ -296,7 +296,7 @@ Exemplos:
 
 ### Cenário 1: Perda Total (PC formatado/roubado)
 1. Instalar sistema em novo PC (`npm install && npm run dev`)
-2. Login com credenciais padrão
+2. Abrir o sistema (acesso direto, sem login)
 3. Configurações → Backup → Restaurar
 4. Selecionar backup mais recente
 5. Sistema pronto
@@ -309,9 +309,9 @@ Exemplos:
 
 ### Cenário 3: Troca de Responsável
 1. Responsável antigo faz backup final
-2. Entrega arquivo (criptografado) + senha separada
+2. Entrega arquivo criptografado
 3. Novo responsável restaura em seu PC
-4. Altera senha do admin imediatamente
+4. Confere os dados restaurados
 
 ### Cenário 4: Atualização do Sistema
 1. Backup pré-atualização (obrigatório)

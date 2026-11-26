@@ -24,7 +24,7 @@ import {
 } from '../components/forms';
 import { buildCharge, getBillingSettings, monthLabel, sendMonthlyCharges } from '../lib/billing';
 import { buildPixQr } from '../lib/pix';
-import { useAuth } from '../context/AuthContext';
+import { CURRENT_USER } from '../lib/currentUser';
 import type { Member } from '../types';
 import { ALLOWED_MILITARY_RANKS, isAllowedMilitaryRank, militaryRankLabel } from '../types';
 
@@ -40,7 +40,6 @@ function amountInput(cents: number) {
 }
 
 export function Members() {
-  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<'ACTIVE' | 'INACTIVE' | ''>('');
   const [selectedRank, setSelectedRank] = useState('');
@@ -176,7 +175,7 @@ export function Members() {
         amount: amountCents,
         date: parseDateBR(bulkDate),
         notes: bulkFile ? `Comprovante: ${bulkFile.name}` : 'Pagamento registrado em lote',
-        recordedById: user?.id,
+        recordedById: CURRENT_USER.id,
       });
 
       if (bulkFile) {
@@ -185,7 +184,7 @@ export function Members() {
             file: bulkFile,
             entityType: 'MEMBER_PAYMENT',
             entityId: paymentId,
-            uploadedById: user?.id,
+            uploadedById: CURRENT_USER.id,
           });
         }
       }
@@ -563,7 +562,6 @@ function ManualPaymentForm({ member, monthYear, expectedAmountCents, onCancel }:
   expectedAmountCents: number;
   onCancel: () => void;
 }) {
-  const { user } = useAuth();
   const recordPayment = useRecordMemberPayment();
   const uploadAttachment = useUploadAttachment();
   const [amount, setAmount] = useState(amountInput(expectedAmountCents));
@@ -585,14 +583,14 @@ function ManualPaymentForm({ member, monthYear, expectedAmountCents, onCancel }:
         monthYear,
         amount: amountCents,
         date: parseDateBR(date),
-        recordedById: user?.id,
+        recordedById: CURRENT_USER.id,
       });
       if (file && paymentId) {
         await uploadAttachment.mutateAsync({
           file,
           entityType: 'MEMBER_PAYMENT',
           entityId: paymentId,
-          uploadedById: user?.id,
+          uploadedById: CURRENT_USER.id,
         });
       }
       onCancel();

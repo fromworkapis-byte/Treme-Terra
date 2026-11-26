@@ -88,10 +88,7 @@ npm run dev
 
 1. Abra o navegador
 2. Acesse: **http://localhost:5173**
-3. Login com credenciais iniciais:
-   - **Email**: `admin@gremio.local`
-   - **Senha**: `Gremio@2026!Admin`
-4. **Troque a senha imediatamente** (obrigatório no primeiro acesso)
+3. O sistema abre direto no Dashboard, sem login, como Administrador do Sistema.
 
 ---
 
@@ -172,25 +169,21 @@ server {
 
 ## 🔧 Configurações Pós-Instalação
 
-### 1. Trocar Senha do Admin (Obrigatório)
-- No primeiro login, o sistema **força a troca**
-- Use senha forte: mín. 8 chars, maiúscula, minúscula, número, especial
-
-### 2. Cadastrar Efetivo Inicial
+### 1. Cadastrar Efetivo Inicial
 1. Ir em **Efetivo → Novo Integrante**
 2. Preencher: Post/Grad, Nome, Ordem (antiguidade), Data ingresso
 3. Ordem menor = mais antigo (não aparece na tela)
 
-### 3. Configurar Contas
+### 2. Configurar Contas
 1. Ir em **Configurações → Contas**
 2. Verificar/criar: Caixa Físico, Conta Bancária, PIX
 3. Definir saldos iniciais se houver
 
-### 4. Ajustar Categorias (Opcional)
+### 3. Ajustar Categorias (Opcional)
 - **Configurações → Categorias**
 - Adicionar/remover conforme necessidade da unidade
 
-### 5. Testar Fluxo Completo
+### 4. Testar Fluxo Completo
 1. Lançar uma **Entrada** (ex: Mensalidade)
 2. Lançar uma **Despesa** (ex: Alimentação)
 3. Fazer uma **Transferência** (Caixa → Banco)
@@ -253,8 +246,7 @@ docker run -d -p 8080:80 gremio-financeiro
 | Dependências instaladas | ☐ | `npm install` sem erros |
 | Build funciona | ☐ | `npm run build` cria dist/ |
 | Dev server roda | ☐ | `npm run dev` abre localhost:5173 |
-| Login funciona | ☐ | admin@gremio.local / Gremio@2026!Admin |
-| Troca de senha forçada | ☐ | Primeiro acesso |
+| Acesso direto sem login | ☐ | Abre no Dashboard |
 | Dashboard carrega gráficos | ☐ | 4 gráficos visíveis |
 | CRUD Entradas funciona | ☐ | Criar, editar, excluir |
 | CRUD Despesas funciona | ☐ | Criar, editar, excluir |

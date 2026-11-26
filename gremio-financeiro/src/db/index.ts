@@ -20,6 +20,7 @@ import type {
   EntityType,
   AuditAction,
 } from '../types';
+import { CURRENT_USER } from '../lib/currentUser';
 
 // ===== DATABASE CLASS =====
 class GremioDatabase extends Dexie {
@@ -162,8 +163,7 @@ class GremioDatabase extends Dexie {
   }
 
   private getCurrentUserId(): string {
-    // TODO: pegar do context de auth
-    return 'system';
+    return CURRENT_USER.id;
   }
 }
 

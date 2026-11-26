@@ -3,7 +3,7 @@ import * as React from 'react';
 import { Camera, Loader2 } from 'lucide-react';
 import { Button, DatePicker, Input, Select } from '../ui';
 import { useRecordMemberPayment, useUploadAttachment } from '../../hooks/useFinancialData';
-import { useAuth } from '../../context/AuthContext';
+import { CURRENT_USER } from '../../lib/currentUser';
 import { formatBRL, formatDateBR, parseBRL, parseDateBR } from '../../db';
 import { analyzeReceipt, readReceipt } from '../../lib/receipt';
 import { militaryRankLabel } from '../../types';
@@ -33,7 +33,6 @@ export function ReceiptPaymentForm({
   const activeMembers = members.filter(member => member.status === 'ACTIVE');
   const recordPayment = useRecordMemberPayment();
   const uploadAttachment = useUploadAttachment();
-  const { user } = useAuth();
 
   const [file, setFile] = React.useState<File | null>(null);
   const [reading, setReading] = React.useState(false);
@@ -80,7 +79,7 @@ export function ReceiptPaymentForm({
         amount: amountCents,
         date: parseDateBR(date),
         notes: `Comprovante: ${file?.name || 'manual'}${ocrText ? ' (lido por OCR)' : ''}`,
-        recordedById: user?.id,
+        recordedById: CURRENT_USER.id,
       });
 
       if (file && savedPaymentId) {
@@ -88,7 +87,7 @@ export function ReceiptPaymentForm({
           file,
           entityType: 'MEMBER_PAYMENT',
           entityId: savedPaymentId,
-          uploadedById: user?.id,
+          uploadedById: CURRENT_USER.id,
         });
       }
 

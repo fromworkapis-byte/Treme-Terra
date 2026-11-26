@@ -1,11 +1,10 @@
 // ===== SETTINGS PAGE =====
 import * as React from 'react';
 import { useState } from 'react';
-import { Save, Download, Upload, Key, Trash2, Shield, Database, Building, Palette, Globe, Plus, Edit, AlertCircle, QrCode } from 'lucide-react';
-import { Button, Input, Select, Card, CardContent, CardHeader, CardTitle, CardDescription, Switch, Label, Tabs, TabsList, TabsTrigger, TabsContent, Modal, Badge, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, ScrollArea } from '../components/ui';
+import { Save, Download, Upload, Trash2, Shield, Database, Building, Palette, Globe, Plus, Edit, AlertCircle, QrCode } from 'lucide-react';
+import { Button, Input, Select, Card, CardContent, CardHeader, CardTitle, CardDescription, Switch, Tabs, TabsList, TabsTrigger, TabsContent, Modal, Badge, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, ScrollArea } from '../components/ui';
 import { PageHeader } from '../components/layout';
 import { db, exportBackup, importBackup, formatBRL } from '../db';
-import { useAuth } from '../context/AuthContext';
 import { useAccounts, useCreateAccount, useUpdateAccount, useDeleteAccount } from '../hooks/useFinancialData';
 import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory } from '../hooks/useFinancialData';
 
@@ -17,13 +16,11 @@ import type { Account, Category, User, Member, Setting } from '../types';
 import { militaryRankLabel } from '../types';
 
 export function Settings() {
-  const { user, changePassword } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('general');
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<Account | Category | Member | null>(null);
   const [formType, setFormType] = useState<'account' | 'category' | 'member'>('account');
   const [deletingItem, setDeletingItem] = useState<{ type: string; id: string; name: string } | null>(null);
-  const [showChangePassword, setShowChangePassword] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [generalSettings, setGeneralSettings] = useState({
     unitName: '1ª Companhia de Fuzileiros - Treme Terra',
@@ -147,33 +144,22 @@ export function Settings() {
     }
   };
 
-  const handleChangePassword = async (currentPassword: string, newPassword: string) => {
-    const result = await changePassword(currentPassword, newPassword);
-    if (result.success) {
-      setShowChangePassword(false);
-      alert('Senha alterada com sucesso!');
-    } else {
-      alert(result.error || 'Erro ao alterar senha');
-    }
-  };
-
   return (
     <div className="space-y-6">
       <PageHeader
         title="Configurações"
-        description="Configure categorias, usuários, backup e preferências"
+        description="Configure categorias, backup e preferências"
       />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 md:grid-cols-7">
+        <TabsList className="grid w-full grid-cols-3 md:grid-cols-6">
           <TabsTrigger value="general"><Globe className="w-4 h-4 mr-2" /> Geral</TabsTrigger>
           <TabsTrigger value="accounts"><Building className="w-4 h-4 mr-2" /> Contas</TabsTrigger>
           <TabsTrigger value="categories"><Palette className="w-4 h-4 mr-2" /> Categorias</TabsTrigger>
           <TabsTrigger value="billing"><QrCode className="w-4 h-4 mr-2" /> Cobrança</TabsTrigger>
           <TabsTrigger value="members"><Shield className="w-4 h-4 mr-2" /> Efetivo</TabsTrigger>
           <TabsTrigger value="backup"><Database className="w-4 h-4 mr-2" /> Backup</TabsTrigger>
-          <TabsTrigger value="security"><Key className="w-4 h-4 mr-2" /> Segurança</TabsTrigger>
         </TabsList>
 
         {/* General */}
@@ -446,57 +432,6 @@ export function Settings() {
           </div>
         </TabsContent>
 
-        {/* Security */}
-        <TabsContent value="security">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle><Key className="w-5 h-5 mr-2" /> Alterar Senha</CardTitle>
-                <CardDescription>Altere sua senha de acesso ao sistema</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button variant="outline" onClick={() => setShowChangePassword(true)} className="w-full">
-                  <Key className="w-4 h-4 mr-2" />
-                  Alterar Minha Senha
-                </Button>
-                <p className="text-sm text-text-muted text-center mt-2">
-                  Usuário atual: <strong>{user?.email}</strong> ({user?.role})
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle><Shield className="w-5 h-5 mr-2" /> Permissões</CardTitle>
-                <CardDescription>Seu nível de acesso atual</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="p-4 bg-tertiary/50 rounded-lg">
-                  <p className="font-medium text-text-primary">{user?.role}</p>
-                  <p className="text-sm text-text-muted mt-1">
-                    {user?.role === 'ADMIN' && 'Acesso total ao sistema: gerenciar usuários, configurações, backup e auditoria'}
-                    {user?.role === 'TREASURER' && 'Acesso financeiro: lançar entradas/despesas, gerenciar contas, gerar relatórios'}
-                    {user?.role === 'VIEWER' && 'Acesso somente leitura: visualizar dashboard, relatórios e consultas'}
-                  </p>
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="p-3 rounded-lg bg-tertiary/50">
-                    <p className="text-2xl font-bold text-success">{user?.role === 'ADMIN' ? '✓' : '✗'}</p>
-                    <p className="text-xs text-text-muted">Admin</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-tertiary/50">
-                    <p className="text-2xl font-bold text-info">{['ADMIN', 'TREASURER'].includes(user?.role || '') ? '✓' : '✗'}</p>
-                    <p className="text-xs text-text-muted">Financeiro</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-tertiary/50">
-                    <p className="text-2xl font-bold text-text-primary">✓</p>
-                    <p className="text-xs text-text-muted">Visualizar</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
       </Tabs>
 
       {/* Forms Modal */}
@@ -549,88 +484,6 @@ export function Settings() {
           </div>
         </div>
       </Modal>
-
-      {/* Change Password Modal */}
-      <Modal
-        open={showChangePassword}
-        onOpenChange={setShowChangePassword}
-        title="Alterar Senha"
-        size="sm"
-      >
-        <ChangePasswordForm onSubmit={handleChangePassword} onClose={() => setShowChangePassword(false)} />
-      </Modal>
     </div>
-  );
-}
-
-function ChangePasswordForm({ onSubmit, onClose }: { onSubmit: (current: string, newPass: string) => void; onClose: () => void }) {
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    
-    if (newPassword !== confirmPassword) {
-      setError('As senhas não coincidem');
-      return;
-    }
-    if (newPassword.length < 8) {
-      setError('A nova senha deve ter pelo menos 8 caracteres');
-      return;
-    }
-
-    setSubmitting(true);
-    await onSubmit(currentPassword, newPassword);
-    setSubmitting(false);
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label>Senha Atual</Label>
-        <input
-          type="password"
-          value={currentPassword}
-          onChange={e => setCurrentPassword(e.target.value)}
-          className="input mt-1.5"
-          required
-        />
-      </div>
-      <div>
-        <Label>Nova Senha</Label>
-        <input
-          type="password"
-          value={newPassword}
-          onChange={e => setNewPassword(e.target.value)}
-          className="input mt-1.5"
-          required
-          minLength={8}
-        />
-      </div>
-      <div>
-        <Label>Confirmar Nova Senha</Label>
-        <input
-          type="password"
-          value={confirmPassword}
-          onChange={e => setConfirmPassword(e.target.value)}
-          className="input mt-1.5"
-          required
-        />
-      </div>
-      {error && <p className="text-sm text-danger">{error}</p>}
-      <div className="flex justify-end gap-3 pt-4 border-t border-border">
-        <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-        <Button type="submit" variant="primary" disabled={submitting}>
-          {submitting ? 'Alterando...' : 'Alterar Senha'}
-        </Button>
-      </div>
-    </form>
   );
 }
