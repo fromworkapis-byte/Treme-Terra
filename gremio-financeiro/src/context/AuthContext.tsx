@@ -20,6 +20,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 async function verifyPassword(password: string, hash: string): Promise<boolean> {
   // Em desenvolvimento, aceita senha direta para o admin
   if (hash === 'dev-admin-hash') return password === 'Gremio@2026!Admin';
+  if (hash.startsWith('dev-hash-')) return password === hash.slice('dev-hash-'.length);
   // TODO: implementar bcrypt real no build de produção
   return password === hash.replace('$2b$12$', '');
 }
@@ -84,7 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Verificar se é primeiro acesso
     const settings = await db.settings.get('firstAccess');
-    const firstAccess = settings?.value === true || settings?.value === 'true' || settings?.value === 1;
+    const rawValue = settings?.value as unknown;
+    const firstAccess = rawValue === true || rawValue === 'true' || rawValue === 1 || rawValue === '1';
 
     return { success: true, firstAccess };
   };

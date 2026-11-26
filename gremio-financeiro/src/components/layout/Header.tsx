@@ -1,13 +1,12 @@
 // ===== HEADER COMPONENT =====
 import * as React from 'react';
 import { useState } from 'react';
-import { cn } from '../../utils/cn';
-import { Search, Bell, User, LogOut, Key, ChevronDown } from 'lucide-react';
+import { Search, Bell, LogOut, Key, ChevronDown } from 'lucide-react';
 import { Button, Input, Avatar, AvatarFallback, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '../ui';
 import { useAuth } from '../../context/AuthContext';
 import { MobileMenuButton } from './Sidebar';
 
-export function Header() {
+export function Header({ onMenuClick }: { onMenuClick: () => void }) {
   const { user, logout, hasPermission } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -22,7 +21,7 @@ export function Header() {
     <header className="sticky top-0 z-30 h-16 bg-secondary/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4 lg:px-6">
       {/* Left: Menu + Search */}
       <div className="flex items-center gap-4 flex-1">
-        <MobileMenuButton onClick={() => {}} />
+        <MobileMenuButton onClick={onMenuClick} />
         
         <form onSubmit={handleSearch} className="relative w-full max-w-md hidden md:block flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" aria-hidden="true" />

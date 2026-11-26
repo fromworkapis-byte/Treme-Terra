@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { useState } from 'react';
 import { Search, Filter, Download, Eye, AlertCircle, Clock, User as UserIcon, Trash2, Edit, Plus, RotateCcw } from 'lucide-react';
-import { Button, Input, Select, Badge, Card, CardContent, CardHeader, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, TableHead, ScrollArea, Modal } from '../components/ui';
+import { Button, Input, Select, Badge, Card, CardContent, CardHeader, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, TableHead, ScrollArea, Modal, DatePicker } from '../components/ui';
 import { db } from '../db';
 import { formatBRL, formatDateBR } from '../db';
 import type { AuditLog, User } from '../types';
@@ -44,6 +44,20 @@ const ENTITY_LABELS: Record<string, string> = {
   USER: 'Usuário',
 };
 
+function getActionBadge(action: AuditAction) {
+  const Icon = ACTION_ICONS[action] || AlertCircle;
+  return (
+    <Badge variant={ACTION_COLORS[action] || 'gray'}>
+      <Icon className="w-3 h-3 mr-1" />
+      {ACTION_LABELS[action] || action}
+    </Badge>
+  );
+}
+
+function getEntityBadge(entityType: string) {
+  return <Badge variant="gray">{ENTITY_LABELS[entityType] || entityType}</Badge>;
+}
+
 export function Audit() {
   const [search, setSearch] = useState('');
   const [selectedAction, setSelectedAction] = useState<AuditAction | ''>('');
@@ -66,8 +80,11 @@ export function Audit() {
     try {
       let query = db.auditLogs.orderBy('createdAt').reverse();
       
-      if (dateRange.start && dateRange.end) {
-        query = query.filter(l => l.createdAt >= dateRange.start && l.createdAt <= dateRange.end + 'T23:59:59.999Z');
+      if (dateRange.start) {
+        query = query.filter(l => l.createdAt >= `${dateRange.start}T00:00:00.000Z`);
+      }
+      if (dateRange.end) {
+        query = query.filter(l => l.createdAt <= `${dateRange.end}T23:59:59.999Z`);
       }
       if (selectedAction) {
         query = query.filter(l => l.action === selectedAction);
@@ -98,6 +115,27 @@ export function Audit() {
     setUsers(userList);
   };
 
+  const exportCsv = () => {
+    const rows = [
+      ['Data/Hora', 'Ação', 'Entidade', 'ID', 'Usuário', 'Motivo'],
+      ...logs.map(log => [
+        log.createdAt,
+        ACTION_LABELS[log.action as AuditAction] || log.action,
+        ENTITY_LABELS[log.entityType] || log.entityType,
+        log.entityId,
+        getUserName(log.userId),
+        log.reason || '',
+      ]),
+    ];
+    const csv = rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';')).join('\n');
+    const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `auditoria-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   React.useEffect(() => {
     loadLogs();
   }, [selectedAction, selectedEntity, dateRange.start, dateRange.end, search]);
@@ -105,20 +143,6 @@ export function Audit() {
   const getUserName = (userId: string) => {
     return users.find(u => u.id === userId)?.name || userId;
   };
-
-  const getActionBadge = (action: AuditAction) => {
-    const Icon = ACTION_ICONS[action];
-    return (
-      <Badge variant={ACTION_COLORS[action]}>
-        <Icon className="w-3 h-3 mr-1" />
-        {ACTION_LABELS[action]}
-      </Badge>
-    );
-  };
-
-  const getEntityBadge = (entityType: string) => (
-    <Badge variant="gray">{ENTITY_LABELS[entityType] || entityType}</Badge>
-  );
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
@@ -129,9 +153,9 @@ export function Audit() {
           <p className="text-text-secondary mt-1">Histórico imutável de todas as alterações financeiras</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => {}}> // TODO: Export
+          <Button variant="outline" onClick={exportCsv} disabled={logs.length === 0}>
             <Download className="w-4 h-4 mr-2" />
-            Exportar
+            Exportar CSV
           </Button>
         </div>
       </div>
@@ -326,17 +350,3 @@ function AuditDetailView({ log, users, onClose }: AuditDetailViewProps) {
     </div>
   );
 }
-
-const getActionBadge = (action: AuditAction) => {
-  const Icon = ACTION_ICONS[action];
-  return (
-    <Badge variant={ACTION_COLORS[action]}>
-      <Icon className="w-3 h-3 mr-1" />
-      {ACTION_LABELS[action]}
-    </Badge>
-  );
-};
-
-const getEntityBadge = (entityType: string) => (
-  <Badge variant="gray">{ENTITY_LABELS[entityType] || entityType}</Badge>
-);

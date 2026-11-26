@@ -27,7 +27,7 @@ function Modal({ open, onOpenChange, title, description, children, size = 'md', 
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm animate-fade-in data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
         <DialogPrimitive.Content className={cn(
-          'fixed z-50 w-full bg-secondary border border-border rounded-2xl shadow-2xl animate-fade-in-up data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
+          'fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 bg-secondary border border-border rounded-2xl shadow-2xl animate-fade-in-up data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
           sizes[size]
         )}>
           {(title || showClose) && (

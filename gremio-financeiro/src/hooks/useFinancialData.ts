@@ -1,6 +1,6 @@
 // ===== HOOKS PARA DADOS FINANCEIROS =====
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { db, formatBRL, parseBRL, formatDateBR, getCurrentMonthYear } from '../db';
+import { db, formatBRL, parseBRL, formatDateBR, getCurrentMonthYear, updateAllAccountBalances } from '../db';
 import type { Entry, Expense, Transfer, Account, Category, Member, MemberPayment, FinancialFilters, MemberFilters, User, UserRole } from '../types';
 
 // Query Keys
@@ -69,6 +69,20 @@ export function useDeleteAccount() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.accounts });
+    },
+  });
+}
+
+export function useRecalculateAccountBalances() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => updateAllAccountBalances(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+      queryClient.invalidateQueries({ queryKey: ['entries'] });
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['transfers'] });
     },
   });
 }
@@ -473,6 +487,7 @@ export function useCreateMember() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['memberPaymentStatus'] });
     },
   });
 }
@@ -485,6 +500,7 @@ export function useUpdateMember() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['memberPaymentStatus'] });
     },
   });
 }
@@ -497,6 +513,7 @@ export function useDeleteMember() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['memberPaymentStatus'] });
     },
   });
 }
@@ -536,12 +553,19 @@ export function useMemberPaymentStatus(monthYear: string) {
         return {
           member,
           paid: !!payment,
+          paymentId: payment?.id,
           amount: payment?.amount || 0,
           date: payment?.date,
+          notes: payment?.notes,
         };
       });
     },
   });
+}
+
+function invalidatePayments(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: ['memberPayments'] });
+  queryClient.invalidateQueries({ queryKey: ['memberPaymentStatus'] });
 }
 
 export function useCreateMemberPayment() {
@@ -553,9 +577,7 @@ export function useCreateMemberPayment() {
       await db.memberPayments.add({ ...payment, id, createdAt: now, updatedAt: now });
       return { ...payment, id, createdAt: now, updatedAt: now };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['memberPayments'] });
-    },
+    onSuccess: () => invalidatePayments(queryClient),
   });
 }
 
@@ -565,9 +587,7 @@ export function useUpdateMemberPayment() {
     mutationFn: async ({ id, data }: { id: string; data: Partial<MemberPayment> }) => {
       await db.memberPayments.update(id, { ...data, updatedAt: new Date().toISOString() });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['memberPayments'] });
-    },
+    onSuccess: () => invalidatePayments(queryClient),
   });
 }
 
@@ -577,9 +597,47 @@ export function useDeleteMemberPayment() {
     mutationFn: async (id: string) => {
       await db.memberPayments.delete(id);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['memberPayments'] });
+    onSuccess: () => invalidatePayments(queryClient),
+  });
+}
+
+/** Cria ou atualiza o pagamento de um integrante em um mês (um registro por mês). */
+export function useRecordMemberPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ memberId, monthYear, amount, date, notes }: {
+      memberId: string;
+      monthYear: string;
+      amount: number;
+      date: string;
+      notes?: string;
+    }) => {
+      const existing = await db.memberPayments
+        .where('referenceMonth').equals(monthYear)
+        .filter(payment => payment.memberId === memberId)
+        .first();
+      const now = new Date().toISOString();
+
+      if (existing) {
+        await db.memberPayments.update(existing.id, { amount, date, notes, updatedAt: now });
+        return existing.id;
+      }
+
+      const id = crypto.randomUUID();
+      await db.memberPayments.add({
+        id,
+        memberId,
+        referenceMonth: monthYear,
+        date,
+        amount,
+        notes,
+        recordedById: 'admin-001',
+        createdAt: now,
+        updatedAt: now,
+      });
+      return id;
     },
+    onSuccess: () => invalidatePayments(queryClient),
   });
 }
 

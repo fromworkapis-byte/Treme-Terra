@@ -1,48 +1,36 @@
 // ===== DATE PICKER COMPONENT =====
 import * as React from 'react';
 import { cn } from '../../utils/cn';
-import { formatDateBR, parseDateBR, getCurrentMonthYear } from '../../db';
+import { formatDateBR } from '../../db';
 
-interface DatePickerProps {
+interface DatePickerProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
   label?: string;
   error?: string;
   value?: string;
-  onChange?: (value: string | React.ChangeEvent<HTMLInputElement>) => void;
-  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
-  id?: string;
-  disabled?: boolean;
-  required?: boolean;
-  placeholder?: string;
-  className?: string;
-  name?: string;
+  onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+}
+
+function maskDate(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+function displayDate(value?: string): string {
+  if (!value) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return formatDateBR(value);
+  return maskDate(value);
 }
 
 const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
-  ({ className, label, error, value, onChange, onBlur, id, disabled, required, placeholder, name, ...props }, forwardedRef) => {
-    const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
+  ({ className, label, error, value, onChange, id, disabled, required, placeholder, name, ...props }, forwardedRef) => {
+    const inputId = id || name || label?.toLowerCase().replace(/\s+/g, '-') || 'date-picker';
     const errorId = `${inputId}-error`;
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement> | string) => {
-      const raw = typeof e === 'string' ? e.replace(/\D/g, '') : e.target.value.replace(/\D/g, '');
-      let formatted = '';
-      if (raw.length >= 2) formatted = raw.slice(0, 2);
-      if (raw.length >= 4) formatted += '/' + raw.slice(2, 4);
-      if (raw.length >= 8) formatted += '/' + raw.slice(4, 8);
-      
-      if (typeof e !== 'string') {
-        e.target.value = formatted;
-      }
-      
-      if (onChange && raw.length === 8) {
-        onChange(parseDateBR(formatted));
-      }
-    };
-
-    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-      const raw = e.target.value.replace(/\D/g, '');
-      if (raw.length === 8 && onChange) {
-        onChange(parseDateBR(e.target.value));
-      }
+    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      event.target.value = maskDate(event.target.value);
+      onChange?.(event);
     };
 
     return (
@@ -57,10 +45,10 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
           ref={forwardedRef}
           name={name}
           type="text"
-          placeholder={placeholder || "DD/MM/AAAA"}
-          value={value ? formatDateBR(value) : ''}
+          inputMode="numeric"
+          placeholder={placeholder || 'DD/MM/AAAA'}
+          value={value === undefined ? undefined : displayDate(value)}
           onChange={handleChange}
-          onBlur={handleBlur}
           disabled={disabled}
           required={required}
           className={cn(

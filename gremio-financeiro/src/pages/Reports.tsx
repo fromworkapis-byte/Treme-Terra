@@ -5,6 +5,7 @@ import { Calendar, Download, FileText, BarChart2, Users, Printer } from 'lucide-
 import { Button, Input, Select, Card, CardContent, CardHeader, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, TableHead, ScrollArea, Tabs, TabsList, TabsTrigger, TabsContent, DatePicker, Badge } from '../components/ui';
 import { useEntries, useExpenses, useTransfers, useAccounts, useCategories, useMembers, useMemberPaymentStatus } from '../hooks/useFinancialData';
 import { formatBRL, formatDateBR, getCurrentMonthYear } from '../db';
+import { downloadCsv } from '../lib/export';
 import type { Entry, Expense, Transfer, Account, Category, Member } from '../types';
 
 interface ReportFilters {
@@ -27,7 +28,6 @@ export function Reports() {
   });
   const [reportType, setReportType] = useState<'general' | 'accountability' | 'members'>('general');
   const [generatedReport, setGeneratedReport] = useState<any>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
 
   const { data: entries } = useEntries({
     dateRange: filters.startDate && filters.endDate ? { start: filters.startDate, end: filters.endDate } : undefined,
@@ -56,13 +56,7 @@ export function Reports() {
   };
 
   const handleGenerateReport = () => {
-    setIsGenerating(true);
-    // Simulate report generation
-    setTimeout(() => {
-      const report = generateReportData();
-      setGeneratedReport(report);
-      setIsGenerating(false);
-    }, 500);
+    setGeneratedReport(generateReportData());
   };
 
   const generateReportData = () => {
@@ -114,16 +108,59 @@ export function Reports() {
     };
   };
 
-  const handleExportPDF = () => {
-    if (!generatedReport) return;
-    // TODO: Implement PDF generation with @react-pdf/renderer
-    alert('Exportação PDF será implementada');
-  };
+  const toCurrency = (cents: number) => (cents / 100).toFixed(2).replace('.', ',');
 
-  const handleExportExcel = () => {
-    if (!generatedReport) return;
-    // TODO: Implement Excel generation with exceljs
-    alert('Exportação Excel será implementada');
+  const handleExportCsv = (kind: 'general' | 'accountability' | 'members') => {
+    const filename = `relatorio-${kind}-${new Date().toISOString().slice(0, 10)}.csv`;
+
+    if (kind === 'general') {
+      if (!generatedReport) return;
+      downloadCsv(filename, [
+        ['Relatório Geral'],
+        ['Período', `${generatedReport.period.start || 'início'} a ${generatedReport.period.end || 'hoje'}`],
+        ['Saldo inicial', toCurrency(generatedReport.initialBalance)],
+        ['Total entradas', toCurrency(generatedReport.totalIncome)],
+        ['Total despesas', toCurrency(generatedReport.totalExpense)],
+        ['Transferências', toCurrency(generatedReport.totalTransfers)],
+        ['Saldo final', toCurrency(generatedReport.finalBalance)],
+        [],
+        ['Data', 'Descrição', 'Categoria', 'Tipo', 'Valor (R$)', 'Conta'],
+        ...generatedReport.movements.map((item: any) => [
+          item.date,
+          item.description,
+          item.category?.name || '',
+          item.type,
+          toCurrency(item.amount),
+          item.account?.name || (item.fromAccount ? `${item.fromAccount.name} → ${item.toAccount?.name || ''}` : ''),
+        ]),
+      ]);
+      return;
+    }
+
+    if (kind === 'accountability') {
+      const movements = [
+        ...(entries || []).map(item => ({ ...item, type: 'Entrada', categoryName: item.category?.name || '', accountName: item.account?.name || '' })),
+        ...(expenses || []).map(item => ({ ...item, type: 'Despesa', categoryName: item.category?.name || '', accountName: item.account?.name || '' })),
+        ...(transfers || []).map(item => ({ ...item, type: 'Transferência', categoryName: 'Transferência', accountName: `${item.fromAccount?.name || ''} → ${item.toAccount?.name || ''}` })),
+      ].sort((a, b) => a.date.localeCompare(b.date));
+      downloadCsv(filename, [
+        ['Data', 'Descrição', 'Categoria', 'Tipo', 'Valor (R$)', 'Conta'],
+        ...movements.map(item => [item.date, item.description, item.categoryName, item.type, toCurrency(item.amount), item.accountName]),
+      ]);
+      return;
+    }
+
+    downloadCsv(filename, [
+      ['Posto/Grad', 'Nome', 'Ordem', 'Status', 'Valor (R$)', 'Data do pagamento'],
+      ...(paymentStatus || []).map(status => [
+        status.member.rank,
+        status.member.name,
+        status.member.ordem,
+        status.paid ? 'Pago' : 'Pendente',
+        toCurrency(status.amount),
+        status.date || '',
+      ]),
+    ]);
   };
 
   const handlePrint = () => {
@@ -191,8 +228,8 @@ export function Reports() {
               onChange={e => handleFilterChange('type', e.target.value as any)}
             />
             <div className="flex items-end gap-2">
-              <Button type="button" variant="primary" onClick={handleGenerateReport} disabled={isGenerating} className="w-full">
-                {isGenerating ? 'Gerando...' : 'Gerar Relatório'}
+              <Button type="button" variant="primary" onClick={handleGenerateReport} className="w-full">
+                Gerar Relatório
               </Button>
             </div>
           </form>
@@ -209,7 +246,7 @@ export function Reports() {
 
         <TabsContent value="general">
           {generatedReport ? (
-            <GeneralReportView report={generatedReport} onExportPDF={handleExportPDF} onExportExcel={handleExportExcel} onPrint={handlePrint} />
+            <GeneralReportView report={generatedReport} onExportCsv={() => handleExportCsv('general')} onPrint={handlePrint} />
           ) : (
             <div className="text-center py-12 text-text-muted">
               <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
@@ -227,8 +264,7 @@ export function Reports() {
             accounts={accounts || []}
             members={members || []}
             paymentStatus={paymentStatus || []}
-            onExportPDF={handleExportPDF}
-            onExportExcel={handleExportExcel}
+            onExportCsv={() => handleExportCsv('accountability')}
             onPrint={handlePrint}
           />
         </TabsContent>
@@ -237,8 +273,7 @@ export function Reports() {
           <MembersReportView 
             paymentStatus={paymentStatus || []}
             members={members || []}
-            onExportPDF={handleExportPDF}
-            onExportExcel={handleExportExcel}
+            onExportCsv={() => handleExportCsv('members')}
             onPrint={handlePrint}
           />
         </TabsContent>
@@ -247,7 +282,7 @@ export function Reports() {
   );
 }
 
-function GeneralReportView({ report, onExportPDF, onExportExcel, onPrint }: any) {
+function GeneralReportView({ report, onExportCsv, onPrint }: any) {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
@@ -261,8 +296,7 @@ function GeneralReportView({ report, onExportPDF, onExportExcel, onPrint }: any)
 
       {/* Actions */}
       <div className="flex gap-2">
-        <Button variant="outline" onClick={onExportPDF}><Download className="w-4 h-4 mr-2" /> Exportar PDF</Button>
-        <Button variant="outline" onClick={onExportExcel}><Download className="w-4 h-4 mr-2" /> Exportar Excel</Button>
+        <Button variant="outline" onClick={onExportCsv}><Download className="w-4 h-4 mr-2" /> Exportar CSV</Button>
         <Button variant="ghost" onClick={onPrint}><Printer className="w-4 h-4 mr-2" /> Imprimir</Button>
       </div>
 
@@ -316,7 +350,7 @@ function GeneralReportView({ report, onExportPDF, onExportExcel, onPrint }: any)
   );
 }
 
-function AccountabilityReportView({ entries, expenses, transfers, accounts, members, paymentStatus, onExportPDF, onExportExcel, onPrint }: any) {
+function AccountabilityReportView({ entries, expenses, transfers, accounts, members, paymentStatus, onExportCsv, onPrint }: any) {
   const now = new Date();
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
@@ -361,8 +395,7 @@ function AccountabilityReportView({ entries, expenses, transfers, accounts, memb
 
       {/* Actions */}
       <div className="flex gap-2 mb-6">
-        <Button variant="outline" onClick={onExportPDF}><Download className="w-4 h-4 mr-2" /> Exportar PDF</Button>
-        <Button variant="outline" onClick={onExportExcel}><Download className="w-4 h-4 mr-2" /> Exportar Excel</Button>
+        <Button variant="outline" onClick={onExportCsv}><Download className="w-4 h-4 mr-2" /> Exportar CSV</Button>
         <Button variant="ghost" onClick={onPrint}><Printer className="w-4 h-4 mr-2" /> Imprimir</Button>
       </div>
 
@@ -422,12 +455,11 @@ function AccountabilityReportView({ entries, expenses, transfers, accounts, memb
   );
 }
 
-function MembersReportView({ paymentStatus, members, onExportPDF, onExportExcel, onPrint }: any) {
+function MembersReportView({ paymentStatus, members, onExportCsv, onPrint }: any) {
   return (
     <div className="space-y-6">
       <div className="flex gap-2">
-        <Button variant="outline" onClick={onExportPDF}><Download className="w-4 h-4 mr-2" /> Exportar PDF</Button>
-        <Button variant="outline" onClick={onExportExcel}><Download className="w-4 h-4 mr-2" /> Exportar Excel</Button>
+        <Button variant="outline" onClick={onExportCsv}><Download className="w-4 h-4 mr-2" /> Exportar CSV</Button>
         <Button variant="ghost" onClick={onPrint}><Printer className="w-4 h-4 mr-2" /> Imprimir</Button>
       </div>
 

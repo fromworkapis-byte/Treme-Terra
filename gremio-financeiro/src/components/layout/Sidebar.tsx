@@ -1,6 +1,6 @@
 // ===== SIDEBAR COMPONENT =====
 import * as React from 'react';
-import { Link, useLocation, NavLink } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import {
   LayoutDashboard,
@@ -14,12 +14,10 @@ import {
   Settings,
   Building,
   ChevronLeft,
-  X,
   Menu,
 } from 'lucide-react';
 import { Button } from '../ui';
 import { useAuth } from '../../context/AuthContext';
-import { MILITARY_RANKS } from '../../types';
 
 interface NavItem {
   id: string;
@@ -40,24 +38,23 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'settings', label: 'Configurações', icon: Settings, roles: ['ADMIN'] },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  mobileOpen: boolean;
+  onClose: () => void;
+}
+
+export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   const { user } = useAuth();
-  const location = useLocation();
   const [collapsed, setCollapsed] = React.useState(false);
-  const [mobileOpen, setMobileOpen] = React.useState(false);
 
   const filteredNavItems = NAV_ITEMS.filter(item => !item.roles || (user && item.roles.includes(user.role)));
-
-  const handleNavigate = (id: string) => {
-    setMobileOpen(false);
-  };
 
   return (
     <>
       {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
-          onClick={() => setMobileOpen(false)}
+          onClick={onClose}
           aria-hidden="true"
         />
       )}
@@ -102,7 +99,7 @@ export function Sidebar() {
             <NavLink
               key={item.id}
               to={`/${item.id}`}
-              onClick={() => handleNavigate(item.id)}
+              onClick={onClose}
               className={({ isActive }) => cn(
                 'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
                 'focus:outline-none focus:ring-2 focus:ring-info focus:ring-offset-2 focus:ring-offset-primary',

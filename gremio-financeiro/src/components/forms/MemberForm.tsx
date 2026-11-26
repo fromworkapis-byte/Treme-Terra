@@ -1,5 +1,6 @@
 // ===== MEMBER FORM =====
 import * as React from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -13,9 +14,12 @@ const memberSchema = z.object({
   rank: z.string().min(1, 'Post/Grad é obrigatório'),
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   ordem: z.number().int().positive('Ordem deve ser um número positivo'),
-  phone: z.string().optional(),
+  phone: z
+    .string()
+    .optional()
+    .refine(value => !value || value.replace(/\D/g, '').length >= 10, 'Use DDD + número (10 ou 11 dígitos)'),
   status: z.enum(['ACTIVE', 'INACTIVE']),
-  joinedAt: z.string().min(1, 'Data de ingresso é obrigatória'),
+  joinedAt: z.string().min(10, 'Data de ingresso é obrigatória'),
 });
 
 type MemberFormData = z.infer<typeof memberSchema>;
@@ -26,10 +30,19 @@ interface MemberFormProps {
   onCancel?: () => void;
 }
 
+function maskPhone(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 2) return digits ? `(${digits}` : '';
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
 export function MemberForm({ initialData, onSuccess, onCancel }: MemberFormProps) {
   const isEditing = !!initialData;
   const createMember = useCreateMember();
   const updateMember = useUpdateMember();
+  const [saveError, setSaveError] = useState('');
 
   const defaultValues: MemberFormData = {
     rank: initialData?.rank || 'SD',
@@ -37,7 +50,7 @@ export function MemberForm({ initialData, onSuccess, onCancel }: MemberFormProps
     ordem: initialData?.ordem || 1,
     phone: initialData?.phone || '',
     status: initialData?.status || 'ACTIVE',
-    joinedAt: initialData ? formatDateBR(initialData.joinedAt) : formatDateBR(new Date().toISOString().split('T')[0]),
+    joinedAt: formatDateBR(initialData?.joinedAt || new Date().toISOString().slice(0, 10)),
   };
 
   const {
@@ -52,13 +65,15 @@ export function MemberForm({ initialData, onSuccess, onCancel }: MemberFormProps
   });
 
   const watchedStatus = watch('status');
+  const phoneField = register('phone');
 
   const handleSubmitForm = async (data: MemberFormData) => {
+    setSaveError('');
     const memberData = {
       rank: data.rank as MilitaryRank,
-      name: data.name,
+      name: data.name.trim(),
       ordem: data.ordem,
-      phone: data.phone || undefined,
+      phone: data.phone ? maskPhone(data.phone) : undefined,
       status: data.status,
       joinedAt: data.joinedAt.split('/').reverse().join('-'),
     };
@@ -71,9 +86,11 @@ export function MemberForm({ initialData, onSuccess, onCancel }: MemberFormProps
       }
       onSuccess?.();
     } catch (error) {
-      console.error('Erro ao salvar integrante:', error);
+      setSaveError(error instanceof Error ? error.message : 'Não foi possível salvar. Tente novamente.');
     }
   };
+
+  const submitting = isSubmitting || createMember.isPending || updateMember.isPending;
 
   return (
     <Card>
@@ -107,9 +124,16 @@ export function MemberForm({ initialData, onSuccess, onCancel }: MemberFormProps
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label="Telefone"
+              label="WhatsApp"
               placeholder="(11) 99999-9999"
-              {...register('phone')}
+              inputMode="tel"
+              hint="Necessário para receber o QR Code da mensalidade"
+              {...phoneField}
+              onChange={event => {
+                event.target.value = maskPhone(event.target.value);
+                phoneField.onChange(event);
+              }}
+              error={errors.phone?.message}
             />
             <DatePicker
               label="Data de Ingresso *"
@@ -130,14 +154,11 @@ export function MemberForm({ initialData, onSuccess, onCancel }: MemberFormProps
               </Label>
             </div>
             <p className="text-xs text-text-muted">
-              {watchedStatus === 'ACTIVE' ? 'Integrante ativo no efetivo' : 'Integrante inativo (não aparece em listas padrão)'}
+              {watchedStatus === 'ACTIVE' ? 'Entra na cobrança mensal' : 'Não entra na cobrança mensal'}
             </p>
           </div>
 
-          <p className="text-xs text-text-muted bg-tertiary/50 p-3 rounded-lg">
-            <strong>Nota:</strong> O campo "Ordem" determina a antiguidade do integrante (menor número = mais antigo). 
-            Este número não é exibido nas listagens, serve apenas para ordenação interna.
-          </p>
+          {saveError && <p className="text-sm text-danger" role="alert">{saveError}</p>}
 
           <div className="flex justify-end gap-3 pt-4 border-t border-border">
             {onCancel && (
@@ -145,8 +166,8 @@ export function MemberForm({ initialData, onSuccess, onCancel }: MemberFormProps
                 Cancelar
               </Button>
             )}
-            <Button type="submit" variant="primary" disabled={isSubmitting || createMember.isPending || updateMember.isPending}>
-              {isSubmitting || createMember.isPending || updateMember.isPending ? 'Salvando...' : isEditing ? 'Atualizar' : 'Cadastrar'}
+            <Button type="submit" variant="primary" disabled={submitting}>
+              {submitting ? 'Salvando...' : isEditing ? 'Atualizar' : 'Cadastrar'}
             </Button>
           </div>
         </form>

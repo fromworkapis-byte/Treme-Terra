@@ -1,7 +1,7 @@
 // ===== EXPENSES PAGE =====
 import * as React from 'react';
 import { useState } from 'react';
-import { Plus, Search, Filter, Edit, Trash } from 'lucide-react';
+import { Plus, Edit, Trash } from 'lucide-react';
 import { Button, Input, Select, Badge, Card, CardContent, CardHeader, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, TableHead, ScrollArea, Modal } from '../components/ui';
 import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from '../hooks/useFinancialData';
 import { useCategories } from '../hooks/useFinancialData';
@@ -103,12 +103,6 @@ export function Expenses() {
               value={selectedAccount}
               onChange={e => setSelectedAccount(e.target.value)}
             />
-            <div className="flex items-end gap-2">
-              <Button type="button" variant="outline" className="w-full">
-                <Filter className="w-4 h-4 mr-2" />
-                Filtrar
-              </Button>
-            </div>
           </form>
         </CardContent>
       </Card>

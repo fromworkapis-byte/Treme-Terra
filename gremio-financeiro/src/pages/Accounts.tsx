@@ -3,7 +3,7 @@ import * as React from 'react';
 import { useState } from 'react';
 import { Plus, Edit, Trash, Wallet, CreditCard, Smartphone, Building, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button, Input, Select, Badge, Card, CardContent, CardHeader, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, TableHead, ScrollArea, Modal, Switch, Label } from '../components/ui';
-import { useAccounts, useCreateAccount, useUpdateAccount, useDeleteAccount, useEntries, useExpenses, useTransfers } from '../hooks/useFinancialData';
+import { useAccounts, useCreateAccount, useUpdateAccount, useDeleteAccount, useRecalculateAccountBalances } from '../hooks/useFinancialData';
 import { formatBRL, formatDateBR } from '../db';
 import { AccountForm } from '../components/forms';
 import type { Account, Entry, Expense, Transfer } from '../types';
@@ -27,11 +27,13 @@ export function Accounts() {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [deletingAccount, setDeletingAccount] = useState<Account | null>(null);
   const [viewingStatement, setViewingStatement] = useState<Account | null>(null);
+  const [message, setMessage] = useState('');
 
   const { data: accounts, isLoading } = useAccounts();
   const createAccount = useCreateAccount();
   const updateAccount = useUpdateAccount();
   const deleteAccount = useDeleteAccount();
+  const recalculate = useRecalculateAccountBalances();
 
   const handleOpenCreate = () => {
     setEditingAccount(null);
@@ -75,6 +77,16 @@ export function Accounts() {
     handleCloseForm();
   };
 
+  const handleRecalculate = async () => {
+    setMessage('');
+    try {
+      await recalculate.mutateAsync();
+      setMessage('Saldos recalculados a partir das movimentações.');
+    } catch {
+      setMessage('Não foi possível recalcular os saldos.');
+    }
+  };
+
   const getTotalBalance = () => {
     return accounts?.reduce((sum, a) => sum + a.balance, 0) || 0;
   };
@@ -101,13 +113,12 @@ export function Accounts() {
               <p className="text-sm font-medium text-text-secondary">Saldo Total Consolidado</p>
               <p className="text-4xl font-bold text-text-primary mt-1">{formatBRL(getTotalBalance())}</p>
             </div>
-            <div className="flex items-center gap-4">
-              <Button variant="outline" size="sm" onClick={() => {}}> // TODO: recalculate
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Recalcular
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" onClick={handleRecalculate} disabled={recalculate.isPending}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${recalculate.isPending ? 'animate-spin' : ''}`} />
+              {recalculate.isPending ? 'Recalculando...' : 'Recalcular'}
+            </Button>
           </div>
+          {message && <p className="mt-3 text-sm text-text-secondary">{message}</p>}
         </CardContent>
       </Card>
 

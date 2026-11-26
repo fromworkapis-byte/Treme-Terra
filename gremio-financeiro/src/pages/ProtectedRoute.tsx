@@ -1,7 +1,8 @@
 // ===== PROTECTED ROUTE =====
 import * as React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import type { UserRole } from '../types';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -21,5 +22,15 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  return <Outlet />;
+  return <>{children}</>;
+}
+
+export function RoleGuard({ roles, children }: { roles: UserRole[]; children: React.ReactNode }) {
+  const { hasPermission } = useAuth();
+
+  if (!hasPermission(roles)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
 }

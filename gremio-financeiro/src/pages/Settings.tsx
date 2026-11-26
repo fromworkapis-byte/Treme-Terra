@@ -1,7 +1,7 @@
 // ===== SETTINGS PAGE =====
 import * as React from 'react';
 import { useState } from 'react';
-import { Save, Download, Upload, UserPlus, Key, Trash2, RefreshCw, Shield, Database, Building, Bell, Palette, Globe, Plus, Edit, AlertCircle } from 'lucide-react';
+import { Save, Download, Upload, Key, Trash2, Shield, Database, Building, Palette, Globe, Plus, Edit, AlertCircle, QrCode } from 'lucide-react';
 import { Button, Input, Select, Card, CardContent, CardHeader, CardTitle, CardDescription, Switch, Label, Tabs, TabsList, TabsTrigger, TabsContent, Modal, Badge, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, ScrollArea } from '../components/ui';
 import { db, exportBackup, importBackup, formatBRL } from '../db';
 import { useAuth } from '../context/AuthContext';
@@ -11,25 +11,32 @@ import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory 
 import { useMembers, useCreateMember, useUpdateMember, useDeleteMember } from '../hooks/useFinancialData';
 import { AccountForm } from '../components/forms';
 import { CategoryForm } from '../components/forms';
-import { MemberForm } from '../components/forms';
+import { MemberForm, BillingSettingsForm } from '../components/forms';
 import type { Account, Category, User, Member, Setting } from '../types';
 import { MILITARY_RANKS } from '../types';
 
-// We need to add useUsers hook - let's create a simple version here
-function useUsers() {
-  return { data: [], isLoading: false }; // Placeholder
-}
-
 export function Settings() {
-  const { user, changePassword, hasPermission } = useAuth();
+  const { user, changePassword } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('general');
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<Account | Category | Member | null>(null);
   const [formType, setFormType] = useState<'account' | 'category' | 'member'>('account');
   const [deletingItem, setDeletingItem] = useState<{ type: string; id: string; name: string } | null>(null);
   const [showChangePassword, setShowChangePassword] = useState(false);
-  const [backupData, setBackupData] = useState<string>('');
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [generalSettings, setGeneralSettings] = useState({
+    unitName: '1ª Companhia de Fuzileiros - Treme Terra',
+    unitShortName: '1ª CFz - Treme Terra',
+  });
+
+  React.useEffect(() => {
+    Promise.all([db.settings.get('unitName'), db.settings.get('unitShortName')]).then(([name, shortName]) => {
+      setGeneralSettings({
+        unitName: typeof name?.value === 'string' ? name.value : '1ª Companhia de Fuzileiros - Treme Terra',
+        unitShortName: typeof shortName?.value === 'string' ? shortName.value : '1ª CFz - Treme Terra',
+      });
+    });
+  }, []);
 
   const { data: accounts } = useAccounts();
   const { data: categories } = useCategories();
@@ -43,8 +50,6 @@ export function Settings() {
   const createMember = useCreateMember();
   const updateMember = useUpdateMember();
   const deleteMember = useDeleteMember();
-
-  const isAdmin = hasPermission(['ADMIN']);
 
   const handleOpenCreate = (type: 'account' | 'category' | 'member') => {
     setFormType(type);
@@ -94,6 +99,15 @@ export function Settings() {
 
   const handleFormSuccess = () => {
     handleCloseForm();
+  };
+
+  const handleSaveGeneral = async () => {
+    const now = new Date().toISOString();
+    await Promise.all([
+      db.settings.put({ key: 'unitName', value: generalSettings.unitName, description: 'Nome da unidade', updatedAt: now }),
+      db.settings.put({ key: 'unitShortName', value: generalSettings.unitShortName, description: 'Nome abreviado', updatedAt: now }),
+    ]);
+    alert('Configurações gerais salvas.');
   };
 
   const handleExportBackup = async () => {
@@ -158,7 +172,7 @@ export function Settings() {
           <TabsTrigger value="general"><Globe className="w-4 h-4 mr-2" /> Geral</TabsTrigger>
           <TabsTrigger value="accounts"><Building className="w-4 h-4 mr-2" /> Contas</TabsTrigger>
           <TabsTrigger value="categories"><Palette className="w-4 h-4 mr-2" /> Categorias</TabsTrigger>
-          {isAdmin && <TabsTrigger value="users"><UserPlus className="w-4 h-4 mr-2" /> Usuários</TabsTrigger>}
+          <TabsTrigger value="billing"><QrCode className="w-4 h-4 mr-2" /> Cobrança</TabsTrigger>
           <TabsTrigger value="members"><Shield className="w-4 h-4 mr-2" /> Efetivo</TabsTrigger>
           <TabsTrigger value="backup"><Database className="w-4 h-4 mr-2" /> Backup</TabsTrigger>
           <TabsTrigger value="security"><Key className="w-4 h-4 mr-2" /> Segurança</TabsTrigger>
@@ -173,8 +187,16 @@ export function Settings() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input label="Nome da Unidade" defaultValue="1ª Companhia de Fuzileiros - Treme Terra" />
-                <Input label="Nome Abreviado" defaultValue="1ª CFz - Treme Terra" />
+                <Input
+                  label="Nome da Unidade"
+                  value={generalSettings.unitName}
+                  onChange={event => setGeneralSettings(current => ({ ...current, unitName: event.target.value }))}
+                />
+                <Input
+                  label="Nome Abreviado"
+                  value={generalSettings.unitShortName}
+                  onChange={event => setGeneralSettings(current => ({ ...current, unitShortName: event.target.value }))}
+                />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Select
@@ -200,7 +222,11 @@ export function Settings() {
                 </div>
                 <Switch checked disabled />
               </div>
-              <Button variant="primary"><Save className="w-4 h-4 mr-2" /> Salvar Alterações</Button>
+              <div className="flex justify-end pt-4 border-t border-border">
+                <Button variant="primary" onClick={handleSaveGeneral}>
+                  <Save className="w-4 h-4 mr-2" /> Salvar configurações gerais
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -306,24 +332,10 @@ export function Settings() {
           </Card>
         </TabsContent>
 
-        {/* Users (Admin only) */}
-        {isAdmin && (
-          <TabsContent value="users">
-            <Card>
-              <CardHeader>
-                <CardTitle>Gerenciamento de Usuários</CardTitle>
-                <CardDescription>Apenas administradores podem gerenciar usuários</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-text-muted">
-                  <Shield className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-medium">Funcionalidade em desenvolvimento</p>
-                  <p className="text-sm mt-1">Gerenciamento de usuários será implementado na próxima versão</p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
+        {/* Billing */}
+        <TabsContent value="billing">
+          <BillingSettingsForm />
+        </TabsContent>
 
         {/* Members */}
         <TabsContent value="members">

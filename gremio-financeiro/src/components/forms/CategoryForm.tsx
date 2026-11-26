@@ -131,7 +131,7 @@ export function CategoryForm({ initialData, onSuccess, onCancel }: CategoryFormP
               <Checkbox
                 id="isActive"
                 checked={watch('isActive')}
-                onCheckedChange={checked => setValue('isActive', checked)}
+                onCheckedChange={checked => setValue('isActive', checked === true)}
               />
               <Label htmlFor="isActive" className="cursor-pointer text-sm text-text-secondary">
                 Categoria Ativa

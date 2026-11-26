@@ -185,7 +185,7 @@ export async function seedDatabase() {
   await db.users.add({
     id: 'admin-001',
     email: 'admin@gremio.local',
-    passwordHash: '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/RK.PZvO.S', // Gremio@2026!Admin
+    passwordHash: 'dev-admin-hash', // Gremio@2026!Admin
     name: 'Administrador do Sistema',
     role: 'ADMIN',
     isActive: true,

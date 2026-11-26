@@ -1,21 +1,20 @@
 // ===== MOVEMENTS PAGE =====
 import * as React from 'react';
 import { useState } from 'react';
-import { Search, Filter, Download, Plus, Minus, ArrowLeftRight, Edit, Trash } from 'lucide-react';
+import { Download, ArrowLeftRight, Edit, Trash } from 'lucide-react';
 import { Button, Input, Select, Badge, Card, CardContent, CardHeader, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, TableHead, ScrollArea, Tabs, TabsList, TabsTrigger, TabsContent, Modal } from '../components/ui';
-import { useEntries, useExpenses, useTransfers, useCreateTransfer, useUpdateTransfer, useDeleteTransfer } from '../hooks/useFinancialData';
+import { useEntries, useExpenses, useTransfers, useUpdateTransfer, useDeleteTransfer } from '../hooks/useFinancialData';
 import { useAccounts } from '../hooks/useFinancialData';
 import { formatBRL, formatDateBR } from '../db';
 import { TransferForm } from '../components/forms';
+import { downloadCsv } from '../lib/export';
 import type { Entry, Expense, Transfer, Account } from '../types';
 
 type MovementType = 'all' | 'entry' | 'expense' | 'transfer';
 
 export function Movements() {
   const [search, setSearch] = useState('');
-  const [selectedType, setSelectedType] = useState<MovementType>('all');
   const [selectedAccount, setSelectedAccount] = useState('');
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [activeTab, setActiveTab] = useState<MovementType>('all');
   const [showTransferForm, setShowTransferForm] = useState(false);
   const [editingTransfer, setEditingTransfer] = useState<Transfer | null>(null);
@@ -24,19 +23,15 @@ export function Movements() {
   const { data: entries } = useEntries({
     search: search || undefined,
     accountId: selectedAccount || undefined,
-    dateRange: dateRange.start && dateRange.end ? dateRange : undefined,
   });
   const { data: expenses } = useExpenses({
     search: search || undefined,
     accountId: selectedAccount || undefined,
-    dateRange: dateRange.start && dateRange.end ? dateRange : undefined,
   });
   const { data: transfers } = useTransfers({
     accountId: selectedAccount || undefined,
-    dateRange: dateRange.start && dateRange.end ? dateRange : undefined,
   });
   const { data: accounts } = useAccounts();
-  const createTransfer = useCreateTransfer();
   const updateTransfer = useUpdateTransfer();
   const deleteTransfer = useDeleteTransfer();
 
@@ -63,6 +58,21 @@ export function Movements() {
     if (activeTab !== 'all' && m.type !== activeTab) return false;
     return true;
   });
+
+  const handleExport = () => {
+    const typeLabels: Record<string, string> = { entry: 'Entrada', expense: 'Despesa', transfer: 'Transferência' };
+    downloadCsv('movimentacoes.csv', [
+      ['Data', 'Tipo', 'Descrição', 'Categoria', 'Valor (R$)', 'Conta'],
+      ...filteredMovements.map(m => [
+        m.date,
+        typeLabels[m.type] || m.type,
+        m.description,
+        m.categoryName || '',
+        (m.amount / 100).toFixed(2).replace('.', ','),
+        m.accountName || '',
+      ]),
+    ]);
+  };
 
   const handleOpenCreateTransfer = () => {
     setEditingTransfer(null);
@@ -135,7 +145,7 @@ export function Movements() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
-          <form className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Input
               placeholder="Buscar descrição..."
               value={search}
@@ -143,35 +153,18 @@ export function Movements() {
               className="lg:col-span-2"
             />
             <Select
-              label="Tipo"
-              options={[
-                { value: 'all', label: 'Todos' },
-                { value: 'entry', label: 'Entradas' },
-                { value: 'expense', label: 'Despesas' },
-                { value: 'transfer', label: 'Transferências' },
-              ]}
-              value={selectedType}
-              onChange={e => setSelectedType(e.target.value as MovementType)}
-            />
-            <Select
               label="Conta"
               options={[{ value: '', label: 'Todas' }, ...activeAccounts.map(a => ({ value: a.id, label: a.name }))]}
               value={selectedAccount}
               onChange={e => setSelectedAccount(e.target.value)}
             />
-            <div className="flex items-end gap-2">
-              <Button type="button" variant="outline" className="w-full">
-                <Filter className="w-4 h-4 mr-2" />
-                Filtrar
-              </Button>
-            </div>
-            <div className="flex items-end gap-2">
-              <Button type="button" variant="outline" className="w-full">
+            <div className="flex items-end">
+              <Button type="button" variant="outline" className="w-full" onClick={handleExport} disabled={filteredMovements.length === 0}>
                 <Download className="w-4 h-4 mr-2" />
-                Exportar
+                Exportar CSV
               </Button>
             </div>
-          </form>
+          </div>
         </CardContent>
       </Card>
 
