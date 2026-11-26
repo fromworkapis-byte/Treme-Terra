@@ -1,14 +1,14 @@
 // ===== CONFIGURAÇÃO DA COBRANÇA MENSAL =====
 import * as React from 'react';
 import { useState } from 'react';
-import { Save, Send, AlertCircle } from 'lucide-react';
+import { Save, Send, AlertCircle, Copy, Download, QrCode } from 'lucide-react';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Select, Switch } from '../ui';
 import {
   getBillingSettings, getBillingState, monthLabel, saveBillingSettings, sendMonthlyCharges,
   type BillingSettings,
 } from '../../lib/billing';
 import { formatBRL, getCurrentMonthYear, parseBRL } from '../../db';
-import type { PixKeyType } from '../../lib/pix';
+import { buildPixPayload, buildPixQr, type PixKeyType } from '../../lib/pix';
 
 export function BillingSettingsForm() {
   const [settings, setSettings] = useState<BillingSettings | null>(null);
@@ -18,6 +18,12 @@ export function BillingSettingsForm() {
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
+  const [chargeDescription, setChargeDescription] = useState('Mensalidade do Grêmio');
+  const [dueDate, setDueDate] = useState('');
+  const [groupMessage, setGroupMessage] = useState('');
+  const [qrCode, setQrCode] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [chargeMessage, setChargeMessage] = useState('');
 
   React.useEffect(() => {
     Promise.all([getBillingSettings(), getBillingState()]).then(([loadedSettings, state]) => {
@@ -67,6 +73,61 @@ export function BillingSettingsForm() {
     }
   };
 
+  const handleGenerateGroupCharge = async () => {
+    if (!settings) return;
+    setGenerating(true);
+    setChargeMessage('');
+    setGroupMessage('');
+    setQrCode('');
+    try {
+      const monthlyAmount = parseBRL(amount);
+      if (!settings.pixKey.trim()) throw new Error('Configure a chave PIX antes de gerar a cobrança.');
+      if (monthlyAmount <= 0) throw new Error('Informe um valor mensal maior que zero.');
+      if (!chargeDescription.trim()) throw new Error('Informe a descrição da cobrança.');
+      if (!dueDate) throw new Error('Informe a data de vencimento.');
+
+      const payload = buildPixPayload({
+        config: {
+          key: settings.pixKey,
+          keyType: settings.pixKeyType,
+          merchantName: settings.merchantName,
+          merchantCity: settings.merchantCity,
+        },
+        amountCents: monthlyAmount,
+        txid: `GRM${dueDate.replace(/-/g, '')}`,
+        description: chargeDescription.trim(),
+      });
+      const generatedQr = await buildPixQr(payload);
+      const formattedDueDate = new Date(`${dueDate}T12:00:00`).toLocaleDateString('pt-BR');
+      setQrCode(generatedQr);
+      setGroupMessage([
+        `📣 ${chargeDescription.trim()}`,
+        '',
+        `Valor: ${formatBRL(monthlyAmount)}`,
+        `Vencimento: ${formattedDueDate}`,
+        '',
+        'PIX Copia e Cola:',
+        payload,
+        '',
+        'O QR Code PIX está na imagem anexada. Após pagar, envie o comprovante no grupo.',
+      ].join('\n'));
+      setChargeMessage('Cobrança gerada. Baixe o QR Code e anexe-o junto com a mensagem no grupo.');
+    } catch (error) {
+      setChargeMessage(error instanceof Error ? error.message : 'Não foi possível gerar a cobrança.');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleCopyGroupMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(groupMessage);
+      setChargeMessage('Mensagem copiada. Baixe e anexe o QR Code no grupo.');
+    } catch {
+      setChargeMessage('Não foi possível copiar automaticamente. Selecione e copie o texto da mensagem.');
+    }
+  };
+
   if (!settings) return <p className="text-text-secondary">Carregando...</p>;
 
   return (
@@ -99,6 +160,68 @@ export function BillingSettingsForm() {
             Padrão: {formatBRL(2000)}. Se o integrante atrasar meses, digite o valor total combinado ao registrar o pagamento.
           </p>
           <p className="text-xs text-text-secondary">Valor de referência: {formatBRL(parseBRL(amount) || 0)}</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Gerar cobrança para o grupo</CardTitle>
+          <CardDescription>Crie uma mensagem com vencimento e PIX; o envio ao grupo é manual.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Descrição da cobrança"
+              value={chargeDescription}
+              onChange={event => setChargeDescription(event.target.value)}
+              placeholder="Ex.: Mensalidade do Grêmio"
+            />
+            <Input
+              label="Data de vencimento"
+              type="date"
+              value={dueDate}
+              onChange={event => setDueDate(event.target.value)}
+            />
+          </div>
+          <p className="text-sm text-text-secondary">Valor do PIX: {formatBRL(parseBRL(amount) || 0)} (valor mensal configurado acima).</p>
+          <Button variant="primary" onClick={handleGenerateGroupCharge} disabled={generating}>
+            <QrCode className="w-4 h-4 mr-2" /> {generating ? 'Gerando...' : 'Gerar mensagem e QR Code'}
+          </Button>
+
+          {groupMessage && (
+            <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_220px] gap-5 pt-2">
+              <div className="space-y-3">
+                <label htmlFor="group-charge-message" className="block text-sm font-medium text-text-secondary">
+                  Mensagem para copiar
+                </label>
+                <textarea
+                  id="group-charge-message"
+                  readOnly
+                  value={groupMessage}
+                  rows={10}
+                  className="w-full rounded-lg border border-border bg-primary p-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-info"
+                />
+                <Button variant="outline" onClick={handleCopyGroupMessage}>
+                  <Copy className="w-4 h-4 mr-2" /> Copiar mensagem
+                </Button>
+              </div>
+              <div className="space-y-3">
+                <img src={qrCode} alt="QR Code Pix da cobrança" className="w-full rounded-lg border border-border bg-white p-2" />
+                <a
+                  href={qrCode}
+                  download="pix-gremio.png"
+                  className="inline-flex w-full items-center justify-center rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-primary hover:bg-tertiary focus:outline-none focus:ring-2 focus:ring-info"
+                >
+                  <Download className="w-4 h-4 mr-2" /> Baixar QR Code
+                </a>
+              </div>
+            </div>
+          )}
+          {chargeMessage && (
+            <p className="flex items-center gap-2 text-sm text-text-secondary" role="status">
+              <AlertCircle className="w-4 h-4 shrink-0" /> {chargeMessage}
+            </p>
+          )}
         </CardContent>
       </Card>
 
