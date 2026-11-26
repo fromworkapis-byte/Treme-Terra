@@ -2,13 +2,14 @@
 import * as React from 'react';
 import { useState } from 'react';
 import { Save, Send, AlertCircle, Copy, Download, QrCode } from 'lucide-react';
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Select, Switch } from '../ui';
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Select, Switch, Textarea } from '../ui';
 import {
-  buildGroupCharge, getBillingSettings, getBillingState, monthLabel, saveBillingSettings, sendMonthlyCharges,
+  buildGroupCharge, getBillingSettings, getBillingState, monthLabel, resolveGroupQr, saveBillingSettings, sendMonthlyCharges,
   type BillingSettings,
 } from '../../lib/billing';
 import { formatBRL, getCurrentMonthYear, parseBRL } from '../../db';
-import { buildPixPayload, buildPixQr, type PixKeyType } from '../../lib/pix';
+import { type PixKeyType } from '../../lib/pix';
+import { fileToDataUrl, formatFileSize, isImageFile, MAX_ATTACHMENT_BYTES } from '../../lib/attachment';
 
 export function BillingSettingsForm() {
   const [settings, setSettings] = useState<BillingSettings | null>(null);
@@ -19,6 +20,9 @@ export function BillingSettingsForm() {
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [chargeDescription, setChargeDescription] = useState('Mensalidade do Grêmio');
+  const [chargeMessageText, setChargeMessageText] = useState('');
+  const [qrCodeImage, setQrCodeImage] = useState('');
+  const [qrError, setQrError] = useState('');
   const [groupMessage, setGroupMessage] = useState('');
   const [qrCode, setQrCode] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -29,6 +33,8 @@ export function BillingSettingsForm() {
       setSettings(loadedSettings);
       setAmount((loadedSettings.monthlyAmount / 100).toFixed(2).replace('.', ','));
       setChargeDescription(loadedSettings.chargeDescription);
+      setChargeMessageText(loadedSettings.chargeMessage);
+      setQrCodeImage(loadedSettings.qrCodeImage);
       setLastSentMonth(state.lastSentMonth);
       setLog(state.log.slice(0, 8));
     });
@@ -46,7 +52,13 @@ export function BillingSettingsForm() {
       const monthlyAmount = parseBRL(amount);
       if (monthlyAmount <= 0) throw new Error('Informe um valor maior que zero');
       if (!chargeDescription.trim()) throw new Error('Informe a descrição da cobrança.');
-      const updated = { ...settings, monthlyAmount, chargeDescription: chargeDescription.trim() };
+      const updated = {
+        ...settings,
+        monthlyAmount,
+        chargeDescription: chargeDescription.trim(),
+        chargeMessage: chargeMessageText.trim(),
+        qrCodeImage,
+      };
       await saveBillingSettings(updated);
       setSettings(updated);
       setMessage('Configuração salva.');
@@ -83,28 +95,25 @@ export function BillingSettingsForm() {
     setQrCode('');
     try {
       const monthlyAmount = parseBRL(amount);
-      if (!settings.pixKey.trim()) throw new Error('Configure a chave PIX antes de gerar a cobrança.');
       if (monthlyAmount <= 0) throw new Error('Informe um valor mensal maior que zero.');
       if (!chargeDescription.trim()) throw new Error('Informe a descrição da cobrança.');
+      if (!qrCodeImage.trim() && !settings.pixKey.trim()) {
+        throw new Error('Configure a chave PIX ou salve uma imagem do QR Code.');
+      }
 
       const monthYear = getCurrentMonthYear();
       const { txid, message } = buildGroupCharge({
         monthYear,
         description: chargeDescription,
         amountCents: monthlyAmount,
+        customMessage: chargeMessageText,
       });
-      const payload = buildPixPayload({
-        config: {
-          key: settings.pixKey,
-          keyType: settings.pixKeyType,
-          merchantName: settings.merchantName,
-          merchantCity: settings.merchantCity,
-        },
-        amountCents: monthlyAmount,
+      const generatedQr = await resolveGroupQr({
+        settings: { ...settings, qrCodeImage },
         txid,
-        description: chargeDescription.trim(),
+        description: chargeDescription,
+        amountCents: monthlyAmount,
       });
-      const generatedQr = await buildPixQr(payload);
       setQrCode(generatedQr);
       setGroupMessage(message);
       setChargeMessage('Cobrança gerada. Baixe o QR Code e anexe-o junto com a mensagem no grupo.');
@@ -112,6 +121,26 @@ export function BillingSettingsForm() {
       setChargeMessage(error instanceof Error ? error.message : 'Não foi possível gerar a cobrança.');
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleQrChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    setQrError('');
+    if (!file) return;
+    if (!isImageFile(file)) {
+      setQrError('Escolha uma imagem (PNG, JPG ou WebP).');
+      return;
+    }
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      setQrError(`Imagem muito grande. Máximo ${formatFileSize(MAX_ATTACHMENT_BYTES)}.`);
+      return;
+    }
+    try {
+      setQrCodeImage(await fileToDataUrl(file));
+    } catch {
+      setQrError('Não foi possível ler a imagem.');
     }
   };
 
@@ -182,6 +211,45 @@ export function BillingSettingsForm() {
             <p className="text-sm font-medium text-text-primary">Valor: {formatBRL(parseBRL(amount) || 0)}</p>
             <p className="text-xs text-text-muted">Valor mensal configurado acima, destacado na mensagem.</p>
           </div>
+
+          <div className="space-y-4 rounded-lg border border-border/70 bg-tertiary/30 p-4">
+            <div>
+              <p className="text-sm font-medium text-text-primary">Dados salvos usados pelo botão Gerar cobrança</p>
+              <p className="text-xs text-text-muted">Salve aqui para não precisar configurar toda vez. Vale também para o botão do efetivo.</p>
+            </div>
+            <Textarea
+              label="Texto da cobrança (opcional)"
+              value={chargeMessageText}
+              onChange={event => setChargeMessageText(event.target.value)}
+              rows={7}
+              placeholder="Deixe vazio para usar o texto padrão com mês, valor e aviso do comprovante."
+              hint="Se preenchido, o botão Gerar cobrança copiará exatamente este texto."
+            />
+            <div className="space-y-2">
+              <Label>QR Code salvo (opcional)</Label>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-primary px-3 py-2 text-sm text-text-secondary transition-colors hover:border-border-hover hover:text-text-primary">
+                  <QrCode className="h-4 w-4" />
+                  {qrCodeImage ? 'Trocar imagem do QR Code' : 'Selecionar imagem do QR Code'}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleQrChange} aria-label="Selecionar imagem do QR Code" />
+                </label>
+                {qrCodeImage && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setQrCodeImage('')}>
+                    Remover imagem
+                  </Button>
+                )}
+              </div>
+              {qrCodeImage && (
+                <img src={qrCodeImage} alt="QR Code salvo na configuração" className="h-32 w-32 rounded-lg border border-border bg-white p-2" />
+              )}
+              <p className="text-xs text-text-muted">Se vazio, o QR Code é gerado automaticamente pela chave PIX configurada.</p>
+              {qrError && <p className="text-sm text-danger" role="alert">{qrError}</p>}
+            </div>
+            <Button type="button" variant="outline" onClick={handleSave} disabled={saving}>
+              <Save className="mr-2 h-4 w-4" /> {saving ? 'Salvando...' : 'Salvar texto e QR Code'}
+            </Button>
+          </div>
+
           <Button variant="primary" onClick={handleGenerateGroupCharge} disabled={generating}>
             <QrCode className="w-4 h-4 mr-2" /> {generating ? 'Gerando...' : 'Gerar mensagem e QR Code'}
           </Button>

@@ -11,6 +11,8 @@ export interface BillingSettings {
   merchantCity: string;
   monthlyAmount: number; // centavos
   chargeDescription: string;
+  chargeMessage: string;  // texto salvo, usado pelo botão Gerar cobrança
+  qrCodeImage: string;    // data URL da imagem salva do QR Code
   whatsappApiUrl: string;
   whatsappApiKey: string;
   whatsappInstance: string;
@@ -38,6 +40,8 @@ export const DEFAULT_BILLING: BillingSettings = {
   merchantCity: 'TREME TERRA',
   monthlyAmount: 2000,
   chargeDescription: 'Mensalidade do Grêmio',
+  chargeMessage: '',
+  qrCodeImage: '',
   whatsappApiUrl: '',
   whatsappApiKey: '',
   whatsappInstance: '',
@@ -81,24 +85,48 @@ export function monthLabel(monthYear: string): string {
 }
 
 /** Texto único da cobrança em grupo, usado na geração e na cópia pelo efetivo. */
-export function buildGroupCharge({ monthYear, description, amountCents }: {
+export function buildGroupCharge({ monthYear, description, amountCents, customMessage }: {
   monthYear: string;
   description: string;
   amountCents: number;
+  customMessage?: string;
 }) {
+  const generated = [
+    `📣 *${description.trim()}*`,
+    `Mês de referência: *${monthLabel(monthYear)}*`,
+    '',
+    `*Valor: ${formatBRL(amountCents)}*`,
+    '',
+    'Pague pelo QR Code PIX anexo ou pelo botão de PIX no WhatsApp.',
+    '',
+    '✅ *Após pagar, envie o comprovante de volta por aqui* para registrarmos no grêmio.',
+  ].join('\n');
   return {
     txid: `GRM${monthYear.replace(/-/g, '')}`,
-    message: [
-      `📣 *${description.trim()}*`,
-      `Mês de referência: *${monthLabel(monthYear)}*`,
-      '',
-      `*Valor: ${formatBRL(amountCents)}*`,
-      '',
-      'Pague pelo QR Code PIX anexo ou pelo botão de PIX no WhatsApp.',
-      '',
-      '✅ *Após pagar, envie o comprovante de volta por aqui* para registrarmos no grêmio.',
-    ].join('\n'),
+    message: customMessage?.trim() || generated,
   };
+}
+
+/** Usa o QR salvo na configuração; se não houver, gera um a partir da chave PIX. */
+export async function resolveGroupQr({ settings, txid, description, amountCents }: {
+  settings: BillingSettings;
+  txid: string;
+  description: string;
+  amountCents: number;
+}): Promise<string> {
+  if (settings.qrCodeImage.trim()) return settings.qrCodeImage.trim();
+  const payload = buildPixPayload({
+    config: {
+      key: settings.pixKey,
+      keyType: settings.pixKeyType,
+      merchantName: settings.merchantName,
+      merchantCity: settings.merchantCity,
+    },
+    amountCents,
+    txid,
+    description: description.trim(),
+  });
+  return buildPixQr(payload);
 }
 
 export function buildCharge(memberId: string, monthYear: string, settings: BillingSettings) {

@@ -23,7 +23,7 @@ import {
 import {
   AttachmentList, MemberForm, MemberImportForm, ReceiptField, ReceiptPaymentForm,
 } from '../components/forms';
-import { buildCharge, buildGroupCharge, getBillingSettings, monthLabel } from '../lib/billing';
+import { buildCharge, buildGroupCharge, getBillingSettings, monthLabel, resolveGroupQr } from '../lib/billing';
 import { buildPixQr } from '../lib/pix';
 import { CURRENT_USER } from '../lib/currentUser';
 import type { Member } from '../types';
@@ -44,6 +44,16 @@ function rankBadgeVariant(rank: string): 'success' | 'warning' {
   return rank === 'CB' ? 'success' : 'warning';
 }
 
+async function copyTextAndImage(text: string, dataUrl: string) {
+  if (typeof ClipboardItem === 'undefined') throw new Error('Imagem não suportada');
+  const mime = dataUrl.slice(dataUrl.indexOf(':') + 1, dataUrl.indexOf(';')) || 'image/png';
+  const bytes = await (await fetch(dataUrl)).arrayBuffer();
+  await navigator.clipboard.write([new ClipboardItem({
+    'text/plain': new Blob([text], { type: 'text/plain' }),
+    [mime]: new Blob([bytes], { type: mime }),
+  })]);
+}
+
 export function Members() {
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<'ACTIVE' | 'INACTIVE' | ''>('');
@@ -58,6 +68,7 @@ export function Members() {
   const [viewReceiptPaymentId, setViewReceiptPaymentId] = useState<string | null>(null);
   const [qr, setQr] = useState<{ name: string; dataUrl: string; payload: string } | null>(null);
   const [message, setMessage] = useState('');
+  const [activeTab, setActiveTab] = useState('contributions');
   const [showFilters, setShowFilters] = useState(false);
   const [monthlyAmount, setMonthlyAmount] = useState(2000);
 
@@ -132,13 +143,28 @@ export function Members() {
     setMessage('');
     try {
       const settings = await getBillingSettings();
-      const { message: chargeText } = buildGroupCharge({
+      if (!settings.qrCodeImage.trim() && !settings.pixKey.trim()) {
+        throw new Error('Configure a chave PIX ou salve a imagem do QR Code em Configurações → Cobrança.');
+      }
+      const { txid, message: chargeText } = buildGroupCharge({
         monthYear: selectedMonth,
         description: settings.chargeDescription,
         amountCents: settings.monthlyAmount,
+        customMessage: settings.chargeMessage,
       });
-      await navigator.clipboard.writeText(chargeText);
-      setMessage(`Texto da cobrança de ${monthLabel(selectedMonth)} copiado. Cole no WhatsApp e anexe o QR Code.`);
+      const qrDataUrl = await resolveGroupQr({
+        settings,
+        txid,
+        description: settings.chargeDescription,
+        amountCents: settings.monthlyAmount,
+      });
+      try {
+        await copyTextAndImage(chargeText, qrDataUrl);
+        setMessage(`Texto e QR Code de ${monthLabel(selectedMonth)} copiados. Cole no WhatsApp.`);
+      } catch {
+        await navigator.clipboard.writeText(chargeText);
+        setMessage(`Texto de ${monthLabel(selectedMonth)} copiado. O navegador não copiou a imagem; baixe o QR Code em Configurações → Cobrança.`);
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Não foi possível copiar a cobrança');
     }
@@ -214,6 +240,9 @@ export function Members() {
         description={`Acompanhe e registre os pagamentos de ${monthLabel(selectedMonth)}.`}
         actions={
           <>
+            <Button variant="outline" onClick={() => { setActiveTab('list'); setShowFilters(true); }}>
+              <Filter className="mr-2 h-4 w-4" /> Filtrar efetivo
+            </Button>
             <Button variant="outline" onClick={() => setShowImport(true)}>
               <Upload className="mr-2 h-4 w-4" /> Importar lista
             </Button>
@@ -277,7 +306,7 @@ export function Members() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="contributions" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="contributions">Pagamentos do mês</TabsTrigger>
           <TabsTrigger value="list">Cadastro do efetivo</TabsTrigger>
@@ -301,17 +330,19 @@ export function Members() {
                     Selecionar todos os pendentes
                   </Button>
                 </div>
-                <div className="mx-auto grid max-w-3xl grid-cols-1 items-end justify-center gap-4 sm:grid-cols-2 md:grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_auto]">
+                <p className="mb-3 text-xs text-text-muted">
+                  Valor padrão: {formatBRL(monthlyAmount)}. Digite outro valor se houver atraso.
+                </p>
+                <div className="mx-auto flex max-w-3xl flex-col gap-4 sm:flex-row sm:items-end sm:justify-center">
                   <Input
                     label="Valor por integrante (R$)"
                     inputMode="decimal"
                     value={bulkAmount}
                     onChange={event => setBulkAmount(event.target.value)}
-                    className="text-center"
-                    hint={`Padrão: ${formatBRL(monthlyAmount)}. Digite outro valor se houver atraso.`}
+                    className="sm:w-56"
                   />
-                  <DatePicker label="Data do pagamento" value={bulkDate} onChange={event => setBulkDate(event.target.value)} className="text-center" />
-                  <Button type="button" variant="success" onClick={handleBulkPay} disabled={bulkRecordPayment.isPending}>
+                  <DatePicker label="Data do pagamento" value={bulkDate} onChange={event => setBulkDate(event.target.value)} className="sm:w-56" />
+                  <Button type="button" variant="success" className="shrink-0" onClick={handleBulkPay} disabled={bulkRecordPayment.isPending}>
                     {bulkRecordPayment.isPending ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : null}
@@ -434,10 +465,11 @@ export function Members() {
                       <X className="mr-1 h-4 w-4" /> Limpar filtros
                     </Button>
                   )}
-                  <Button type="button" variant="outline" size="sm" onClick={() => setShowFilters(value => !value)}>
-                    <Filter className="mr-2 h-4 w-4" />
-                    {showFilters ? 'Ocultar filtros' : `Filtrar${activeFilterCount ? ` (${activeFilterCount})` : ''}`}
-                  </Button>
+                  {showFilters && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => setShowFilters(false)}>
+                      Ocultar filtros
+                    </Button>
+                  )}
                 </div>
               </div>
               {showFilters && (
