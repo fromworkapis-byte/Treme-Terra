@@ -12,7 +12,7 @@ import type { PixKeyType } from '../../lib/pix';
 
 export function BillingSettingsForm() {
   const [settings, setSettings] = useState<BillingSettings | null>(null);
-  const [amount, setAmount] = useState('30,00');
+  const [amount, setAmount] = useState('20,00');
   const [lastSentMonth, setLastSentMonth] = useState('');
   const [log, setLog] = useState<{ name: string; ok: boolean; error?: string }[]>([]);
   const [message, setMessage] = useState('');
@@ -95,7 +95,10 @@ export function BillingSettingsForm() {
             <Input label="Cidade" value={settings.merchantCity} onChange={event => update('merchantCity', event.target.value)} />
             <Input label="Valor mensal (R$) *" inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} />
           </div>
-          <p className="text-xs text-text-muted">Valor de referência: {formatBRL(parseBRL(amount) || 0)}</p>
+          <p className="text-xs text-text-muted">
+            Padrão: {formatBRL(2000)}. Se o integrante atrasar meses, digite o valor total combinado ao registrar o pagamento.
+          </p>
+          <p className="text-xs text-text-secondary">Valor de referência: {formatBRL(parseBRL(amount) || 0)}</p>
         </CardContent>
       </Card>
 

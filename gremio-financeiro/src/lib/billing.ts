@@ -35,7 +35,7 @@ export const DEFAULT_BILLING: BillingSettings = {
   pixKeyType: 'PHONE',
   merchantName: '1 CFZ TREME TERRA',
   merchantCity: 'TREME TERRA',
-  monthlyAmount: 3000,
+  monthlyAmount: 2000,
   whatsappApiUrl: '',
   whatsappApiKey: '',
   whatsappInstance: '',

@@ -3,10 +3,12 @@ import * as React from 'react';
 import { useState } from 'react';
 import { Calendar, Download, FileText, BarChart2, Users, Printer } from 'lucide-react';
 import { Button, Input, Select, Card, CardContent, CardHeader, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, TableHead, ScrollArea, Tabs, TabsList, TabsTrigger, TabsContent, DatePicker, Badge } from '../components/ui';
+import { PageHeader } from '../components/layout';
 import { useEntries, useExpenses, useTransfers, useAccounts, useCategories, useMembers, useMemberPaymentStatus } from '../hooks/useFinancialData';
 import { formatBRL, formatDateBR, getCurrentMonthYear } from '../db';
 import { downloadCsv } from '../lib/export';
 import type { Entry, Expense, Transfer, Account, Category, Member } from '../types';
+import { militaryRankLabel } from '../types';
 
 interface ReportFilters {
   startDate: string;
@@ -153,7 +155,7 @@ export function Reports() {
     downloadCsv(filename, [
       ['Posto/Grad', 'Nome', 'Ordem', 'Status', 'Valor (R$)', 'Data do pagamento'],
       ...(paymentStatus || []).map(status => [
-        status.member.rank,
+        militaryRankLabel(status.member.rank),
         status.member.name,
         status.member.ordem,
         status.paid ? 'Pago' : 'Pendente',
@@ -178,14 +180,11 @@ export function Reports() {
   }, []);
 
   return (
-    <div className="p-4 lg:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-text-primary">Relatórios</h1>
-          <p className="text-text-secondary mt-1">Gere relatórios em PDF e Excel para prestação de contas</p>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Relatórios"
+        description="Gere relatórios em PDF e Excel para prestação de contas"
+      />
 
       {/* Filters */}
       <Card>
@@ -483,7 +482,7 @@ function MembersReportView({ paymentStatus, members, onExportCsv, onPrint }: any
               <TableBody>
                 {paymentStatus?.map((status: any) => (
                   <TableRow key={status.member.id}>
-                    <TableCell><Badge variant="info">{status.member.rank}</Badge></TableCell>
+                    <TableCell><Badge variant="info">{militaryRankLabel(status.member.rank)}</Badge></TableCell>
                     <TableCell className="font-medium">{status.member.name}</TableCell>
                     <TableCell className="text-text-secondary font-mono">#{status.member.ordem}</TableCell>
                     <TableCell>{status.paid ? <Badge variant="success">Pago</Badge> : <Badge variant="danger">Pendente</Badge>}</TableCell>

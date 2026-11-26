@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useState } from 'react';
 import { Search, Filter, Download, Eye, AlertCircle, Clock, User as UserIcon, Trash2, Edit, Plus, RotateCcw } from 'lucide-react';
 import { Button, Input, Select, Badge, Card, CardContent, CardHeader, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, TableHead, ScrollArea, Modal, DatePicker } from '../components/ui';
+import { PageHeader } from '../components/layout';
 import { db } from '../db';
 import { formatBRL, formatDateBR } from '../db';
 import type { AuditLog, User } from '../types';
@@ -145,20 +146,17 @@ export function Audit() {
   };
 
   return (
-    <div className="p-4 lg:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-text-primary">Auditoria</h1>
-          <p className="text-text-secondary mt-1">Histórico imutável de todas as alterações financeiras</p>
-        </div>
-        <div className="flex gap-2">
+    <div className="space-y-6">
+      <PageHeader
+        title="Auditoria"
+        description="Histórico imutável de todas as alterações financeiras"
+        actions={
           <Button variant="outline" onClick={exportCsv} disabled={logs.length === 0}>
             <Download className="w-4 h-4 mr-2" />
             Exportar CSV
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Filters */}
       <Card>

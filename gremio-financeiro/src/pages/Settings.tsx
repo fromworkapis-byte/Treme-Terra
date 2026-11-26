@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useState } from 'react';
 import { Save, Download, Upload, Key, Trash2, Shield, Database, Building, Palette, Globe, Plus, Edit, AlertCircle, QrCode } from 'lucide-react';
 import { Button, Input, Select, Card, CardContent, CardHeader, CardTitle, CardDescription, Switch, Label, Tabs, TabsList, TabsTrigger, TabsContent, Modal, Badge, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, ScrollArea } from '../components/ui';
+import { PageHeader } from '../components/layout';
 import { db, exportBackup, importBackup, formatBRL } from '../db';
 import { useAuth } from '../context/AuthContext';
 import { useAccounts, useCreateAccount, useUpdateAccount, useDeleteAccount } from '../hooks/useFinancialData';
@@ -13,7 +14,7 @@ import { AccountForm } from '../components/forms';
 import { CategoryForm } from '../components/forms';
 import { MemberForm, BillingSettingsForm } from '../components/forms';
 import type { Account, Category, User, Member, Setting } from '../types';
-import { MILITARY_RANKS } from '../types';
+import { militaryRankLabel } from '../types';
 
 export function Settings() {
   const { user, changePassword } = useAuth();
@@ -157,14 +158,11 @@ export function Settings() {
   };
 
   return (
-    <div className="p-4 lg:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-text-primary">Configurações</h1>
-          <p className="text-text-secondary mt-1">Configure categorias, usuários, backup e preferências</p>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Configurações"
+        description="Configure categorias, usuários, backup e preferências"
+      />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -366,14 +364,14 @@ export function Settings() {
                   <TableBody>
                     {members?.map(member => (
                       <TableRow key={member.id}>
-                        <TableCell><Badge variant="info">{member.rank}</Badge></TableCell>
+                        <TableCell><Badge variant="info">{militaryRankLabel(member.rank)}</Badge></TableCell>
                         <TableCell className="font-medium">{member.name}</TableCell>
                         <TableCell className="text-text-secondary font-mono">#{member.ordem}</TableCell>
                         <TableCell>{member.status === 'ACTIVE' ? <Badge variant="success">Ativo</Badge> : <Badge variant="gray">Inativo</Badge>}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(member, 'member')} aria-label="Editar"><Edit className="w-4 h-4" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleOpenDelete({ type: 'member', id: member.id, name: `${member.rank} ${member.name}` })} aria-label="Excluir" className="text-danger hover:text-danger"><Trash2 className="w-4 h-4" /></Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleOpenDelete({ type: 'member', id: member.id, name: `${militaryRankLabel(member.rank)} ${member.name}` })} aria-label="Excluir" className="text-danger hover:text-danger"><Trash2 className="w-4 h-4" /></Button>
                           </div>
                         </TableCell>
                       </TableRow>

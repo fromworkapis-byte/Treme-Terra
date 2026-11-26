@@ -174,6 +174,116 @@ db.updateAccountBalance = updateAccountBalance;
 db.updateAllAccountBalances = updateAllAccountBalances;
 db.recalculateAccountBalance = recalculateAccountBalance;
 
+// ===== ANEXOS (COMPROVANTES) =====
+
+export interface NewAttachmentInput {
+  fileName: string;
+  filePath: string;
+  mimeType: string;
+  fileSize: number;
+  entityType: EntityType;
+  entityId: string;
+  uploadedById?: string;
+}
+
+export async function addAttachment(input: NewAttachmentInput): Promise<Attachment> {
+  const attachment: Attachment = {
+    ...input,
+    id: crypto.randomUUID(),
+    uploadedById: input.uploadedById || 'system',
+    createdAt: new Date().toISOString(),
+  };
+  await db.attachments.add(attachment);
+  return attachment;
+}
+
+export async function getAttachments(entityType: EntityType, entityId: string): Promise<Attachment[]> {
+  return db.attachments
+    .where('entityId')
+    .equals(entityId)
+    .and(attachment => attachment.entityType === entityType)
+    .toArray();
+}
+
+export async function deleteAttachment(id: string): Promise<void> {
+  await db.attachments.delete(id);
+}
+
+// ===== PAGAMENTOS DE INTEGRANTES =====
+
+export interface RecordMemberPaymentInput {
+  memberId: string;
+  monthYear: string;
+  amount: number;
+  date: string;
+  notes?: string;
+  recordedById?: string;
+}
+
+/**
+ * Cria ou atualiza pagamentos garantindo no máximo um registro por
+ * (integrante, mês). Usado tanto no registro individual quanto no lote.
+ */
+export async function recordMemberPayments(input: Omit<RecordMemberPaymentInput, 'memberId'> & {
+  memberIds: string[];
+}): Promise<string[]> {
+  const memberIds = Array.from(new Set(input.memberIds));
+  if (memberIds.length === 0) return [];
+
+  const now = new Date().toISOString();
+  const recordedById = input.recordedById || 'admin-001';
+
+  return db.transaction('rw', db.memberPayments, async () => {
+    const existing = await db.memberPayments
+      .where('referenceMonth')
+      .equals(input.monthYear)
+      .toArray();
+    const byMember = new Map(existing.map(payment => [payment.memberId, payment]));
+    const ids: string[] = [];
+
+    for (const memberId of memberIds) {
+      const current = byMember.get(memberId);
+
+      if (current) {
+        await db.memberPayments.update(current.id, {
+          amount: input.amount,
+          date: input.date,
+          notes: input.notes,
+          updatedAt: now,
+        });
+        ids.push(current.id);
+        continue;
+      }
+
+      const id = crypto.randomUUID();
+      const created: MemberPayment = {
+        id,
+        memberId,
+        referenceMonth: input.monthYear,
+        date: input.date,
+        amount: input.amount,
+        notes: input.notes,
+        recordedById,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await db.memberPayments.add(created);
+      byMember.set(memberId, created);
+      ids.push(id);
+    }
+
+    return ids;
+  });
+}
+
+export async function recordMemberPayment(input: RecordMemberPaymentInput): Promise<string> {
+  const [id] = await recordMemberPayments({
+    ...input,
+    memberIds: [input.memberId],
+  });
+  return id;
+}
+
 // ===== SEED DATA =====
 export async function seedDatabase() {
   const userCount = await db.users.count();

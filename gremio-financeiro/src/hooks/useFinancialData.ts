@@ -1,7 +1,14 @@
 // ===== HOOKS PARA DADOS FINANCEIROS =====
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { db, formatBRL, parseBRL, formatDateBR, getCurrentMonthYear, updateAllAccountBalances } from '../db';
-import type { Entry, Expense, Transfer, Account, Category, Member, MemberPayment, FinancialFilters, MemberFilters, User, UserRole } from '../types';
+import {
+  db, formatBRL, parseBRL, formatDateBR, getCurrentMonthYear, updateAllAccountBalances,
+  addAttachment, getAttachments, deleteAttachment, recordMemberPayment, recordMemberPayments,
+} from '../db';
+import { fileToDataUrl } from '../lib/attachment';
+import type {
+  Entry, Expense, Transfer, Account, Category, Member, MemberPayment, FinancialFilters,
+  MemberFilters, User, UserRole, EntityType,
+} from '../types';
 
 // Query Keys
 export const queryKeys = {
@@ -16,6 +23,7 @@ export const queryKeys = {
   monthlyEvolution: (year?: number) => ['monthlyEvolution', year] as const,
   yearlyComparison: ['yearlyComparison'] as const,
   categoryExpenses: (monthYear?: string) => ['categoryExpenses', monthYear] as const,
+  attachments: (entityType: EntityType, entityId?: string) => ['attachments', entityType, entityId] as const,
 };
 
 // ===== ACCOUNTS =====
@@ -541,12 +549,14 @@ export function useMemberPaymentStatus(monthYear: string) {
   return useQuery({
     queryKey: ['memberPaymentStatus', monthYear],
     queryFn: async () => {
-      const [members, payments] = await Promise.all([
+      const [members, payments, receipts] = await Promise.all([
         db.members.where('status').equals('ACTIVE').toArray(),
         db.memberPayments.where('referenceMonth').equals(monthYear).toArray(),
+        db.attachments.where('entityType').equals('MEMBER_PAYMENT').toArray(),
       ]);
       
       const paymentMap = new Map(payments.map(p => [p.memberId, p]));
+      const receiptPaymentIds = new Set(receipts.map(attachment => attachment.entityId));
       
       return members.map(member => {
         const payment = paymentMap.get(member.id);
@@ -557,6 +567,7 @@ export function useMemberPaymentStatus(monthYear: string) {
           amount: payment?.amount || 0,
           date: payment?.date,
           notes: payment?.notes,
+          hasReceipt: payment ? receiptPaymentIds.has(payment.id) : false,
         };
       });
     },
@@ -605,39 +616,86 @@ export function useDeleteMemberPayment() {
 export function useRecordMemberPayment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ memberId, monthYear, amount, date, notes }: {
+    mutationFn: async ({ memberId, monthYear, amount, date, notes, recordedById }: {
       memberId: string;
       monthYear: string;
       amount: number;
       date: string;
       notes?: string;
-    }) => {
-      const existing = await db.memberPayments
-        .where('referenceMonth').equals(monthYear)
-        .filter(payment => payment.memberId === memberId)
-        .first();
-      const now = new Date().toISOString();
-
-      if (existing) {
-        await db.memberPayments.update(existing.id, { amount, date, notes, updatedAt: now });
-        return existing.id;
-      }
-
-      const id = crypto.randomUUID();
-      await db.memberPayments.add({
-        id,
-        memberId,
-        referenceMonth: monthYear,
-        date,
-        amount,
-        notes,
-        recordedById: 'admin-001',
-        createdAt: now,
-        updatedAt: now,
-      });
-      return id;
-    },
+      recordedById?: string;
+    }) => recordMemberPayment({ memberId, monthYear, amount, date, notes, recordedById }),
     onSuccess: () => invalidatePayments(queryClient),
+  });
+}
+
+/** Registra vários integrantes de uma vez, mantendo um pagamento por mês. */
+export function useRecordMemberPaymentsBulk() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ memberIds, monthYear, amount, date, notes, recordedById }: {
+      memberIds: string[];
+      monthYear: string;
+      amount: number;
+      date: string;
+      notes?: string;
+      recordedById?: string;
+    }) => recordMemberPayments({ memberIds, monthYear, amount, date, notes, recordedById }),
+    onSuccess: () => invalidatePayments(queryClient),
+  });
+}
+
+// ===== ANEXOS =====
+export function useAttachments(entityType: EntityType, entityId?: string) {
+  return useQuery({
+    queryKey: queryKeys.attachments(entityType, entityId),
+    queryFn: () => getAttachments(entityType, entityId || ''),
+    enabled: !!entityId,
+  });
+}
+
+export function useUploadAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ file, entityType, entityId, uploadedById }: {
+      file: File;
+      entityType: EntityType;
+      entityId: string;
+      uploadedById?: string;
+    }) => {
+      const filePath = await fileToDataUrl(file);
+      return addAttachment({
+        fileName: file.name,
+        filePath,
+        mimeType: file.type || 'application/octet-stream',
+        fileSize: file.size,
+        entityType,
+        entityId,
+        uploadedById,
+      });
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.attachments(variables.entityType, variables.entityId),
+      });
+      if (variables.entityType === 'MEMBER_PAYMENT') {
+        invalidatePayments(queryClient);
+      }
+      if (variables.entityType === 'EXPENSE') {
+        queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      }
+    },
+  });
+}
+
+export function useDeleteAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteAttachment(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attachments'] });
+      queryClient.invalidateQueries({ queryKey: ['memberPaymentStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+    },
   });
 }
 

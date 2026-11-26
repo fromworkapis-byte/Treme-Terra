@@ -14,10 +14,15 @@ export interface User {
   updatedAt: string;
 }
 
-// Post/Grad militar
-export type MilitaryRank = 
-  | 'SD' | 'CB' | '3SG' | '2SG' | '1SG' | 'ST'    // Praças
-  | 'ASP' | '2TEN' | '1TEN' | 'CAP' | 'MAJ' | 'TC' | 'CEL' | 'GEN'; // Oficiais
+// Postos/graduações permitidos para novos cadastros.
+export type AllowedMilitaryRank = 'SD_RC' | 'SD_ENG' | 'CB';
+
+// Valores antigos continuam legíveis para não apagar cadastros já existentes.
+export type LegacyMilitaryRank =
+  | 'SD' | '3SG' | '2SG' | '1SG' | 'ST'
+  | 'ASP' | '2TEN' | '1TEN' | 'CAP' | 'MAJ' | 'TC' | 'CEL' | 'GEN';
+
+export type MilitaryRank = AllowedMilitaryRank | LegacyMilitaryRank;
 
 export interface Member {
   id: string;
@@ -134,7 +139,7 @@ export interface MemberPayment {
   recordedBy?: User;
 }
 
-export type EntityType = 'ENTRY' | 'EXPENSE';
+export type EntityType = 'ENTRY' | 'EXPENSE' | 'MEMBER_PAYMENT';
 
 export interface Attachment {
   id: string;
@@ -282,24 +287,40 @@ export interface YearlyComparison {
 
 // ===== CONSTANTES =====
 
-export const MILITARY_RANKS: { value: MilitaryRank; label: string; order: number }[] = [
-  // Praças
-  { value: 'SD', label: 'Soldado', order: 1 },
-  { value: 'CB', label: 'Cabo', order: 2 },
-  { value: '3SG', label: '3º Sargento', order: 3 },
-  { value: '2SG', label: '2º Sargento', order: 4 },
-  { value: '1SG', label: '1º Sargento', order: 5 },
-  { value: 'ST', label: 'Subtenente', order: 6 },
-  // Oficiais
-  { value: 'ASP', label: 'Aspirante', order: 7 },
-  { value: '2TEN', label: '2º Tenente', order: 8 },
-  { value: '1TEN', label: '1º Tenente', order: 9 },
-  { value: 'CAP', label: 'Capitão', order: 10 },
-  { value: 'MAJ', label: 'Major', order: 11 },
-  { value: 'TC', label: 'Tenente-Coronel', order: 12 },
-  { value: 'CEL', label: 'Coronel', order: 13 },
-  { value: 'GEN', label: 'General', order: 14 },
+export const ALLOWED_MILITARY_RANKS: { value: AllowedMilitaryRank; label: string; order: number }[] = [
+  { value: 'SD_RC', label: 'Soldado Recruta', order: 1 },
+  { value: 'SD_ENG', label: 'Soldado Engajado', order: 2 },
+  { value: 'CB', label: 'Cabo', order: 3 },
 ];
+
+/** Mantido como alias para compatibilidade com código antigo. */
+export const MILITARY_RANKS = ALLOWED_MILITARY_RANKS;
+
+const LEGACY_RANK_LABELS: Record<LegacyMilitaryRank, string> = {
+  SD: 'Soldado (cadastro antigo)',
+  '3SG': '3º Sargento (cadastro antigo)',
+  '2SG': '2º Sargento (cadastro antigo)',
+  '1SG': '1º Sargento (cadastro antigo)',
+  ST: 'Subtenente (cadastro antigo)',
+  ASP: 'Aspirante (cadastro antigo)',
+  '2TEN': '2º Tenente (cadastro antigo)',
+  '1TEN': '1º Tenente (cadastro antigo)',
+  CAP: 'Capitão (cadastro antigo)',
+  MAJ: 'Major (cadastro antigo)',
+  TC: 'Tenente-Coronel (cadastro antigo)',
+  CEL: 'Coronel (cadastro antigo)',
+  GEN: 'General (cadastro antigo)',
+};
+
+export function isAllowedMilitaryRank(rank: string): rank is AllowedMilitaryRank {
+  return ALLOWED_MILITARY_RANKS.some(item => item.value === rank);
+}
+
+export function militaryRankLabel(rank: string): string {
+  const allowed = ALLOWED_MILITARY_RANKS.find(item => item.value === rank);
+  if (allowed) return allowed.label;
+  return LEGACY_RANK_LABELS[rank as LegacyMilitaryRank] || rank;
+}
 
 export const ACCOUNT_TYPES: { value: AccountType; label: string; icon: string }[] = [
   { value: 'CASH', label: 'Caixa Físico', icon: 'wallet' },

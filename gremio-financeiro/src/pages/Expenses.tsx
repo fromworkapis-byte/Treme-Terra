@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useState } from 'react';
 import { Plus, Edit, Trash } from 'lucide-react';
 import { Button, Input, Select, Badge, Card, CardContent, CardHeader, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, TableHead, ScrollArea, Modal } from '../components/ui';
+import { PageHeader } from '../components/layout';
 import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from '../hooks/useFinancialData';
 import { useCategories } from '../hooks/useFinancialData';
 import { useAccounts } from '../hooks/useFinancialData';
@@ -68,18 +69,17 @@ export function Expenses() {
   };
 
   return (
-    <div className="p-4 lg:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-text-primary">Despesas</h1>
-          <p className="text-text-secondary mt-1">Controle todos os gastos e anexe comprovantes</p>
-        </div>
-        <Button variant="danger" onClick={handleOpenCreate}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nova Despesa
-        </Button>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Despesas"
+        description="Controle todos os gastos e anexe comprovantes"
+        actions={
+          <Button variant="danger" onClick={handleOpenCreate}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Despesa
+          </Button>
+        }
+      />
 
       {/* Filters */}
       <Card>

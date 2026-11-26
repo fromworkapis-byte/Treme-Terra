@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useState } from 'react';
 import { Plus, Edit, Trash, Wallet, CreditCard, Smartphone, Building, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button, Input, Select, Badge, Card, CardContent, CardHeader, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, TableHead, ScrollArea, Modal, Switch, Label } from '../components/ui';
+import { PageHeader } from '../components/layout';
 import { useAccounts, useCreateAccount, useUpdateAccount, useDeleteAccount, useRecalculateAccountBalances } from '../hooks/useFinancialData';
 import { formatBRL, formatDateBR } from '../db';
 import { AccountForm } from '../components/forms';
@@ -92,18 +93,17 @@ export function Accounts() {
   };
 
   return (
-    <div className="p-4 lg:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-text-primary">Contas e Caixa</h1>
-          <p className="text-text-secondary mt-1">Gerencie contas bancárias, caixa físico e transferências</p>
-        </div>
-        <Button variant="primary" onClick={handleOpenCreate}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nova Conta
-        </Button>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Contas e Caixa"
+        description="Gerencie contas bancárias, caixa físico e transferências"
+        actions={
+          <Button variant="primary" onClick={handleOpenCreate}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Conta
+          </Button>
+        }
+      />
 
       {/* Total Balance */}
       <Card>

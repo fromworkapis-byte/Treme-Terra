@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useState } from 'react';
 import { Plus, Edit, Trash } from 'lucide-react';
 import { Button, Input, Select, Badge, Card, CardContent, CardHeader, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, TableHead, ScrollArea, Modal } from '../components/ui';
+import { PageHeader } from '../components/layout';
 import { useEntries, useCreateEntry, useUpdateEntry, useDeleteEntry } from '../hooks/useFinancialData';
 import { useCategories } from '../hooks/useFinancialData';
 import { useAccounts } from '../hooks/useFinancialData';
@@ -70,18 +71,17 @@ export function Entries() {
   };
 
   return (
-    <div className="p-4 lg:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-text-primary">Entradas</h1>
-          <p className="text-text-secondary mt-1">Registre e gerencie todos os recebimentos do grêmio</p>
-        </div>
-        <Button variant="primary" onClick={handleOpenCreate}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nova Entrada
-        </Button>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Entradas"
+        description="Registre e gerencie todos os recebimentos do grêmio"
+        actions={
+          <Button variant="primary" onClick={handleOpenCreate}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Entrada
+          </Button>
+        }
+      />
 
       {/* Filters */}
       <Card>

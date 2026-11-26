@@ -8,7 +8,7 @@ import { Button, Input, Select, DatePicker, Card, CardContent, CardHeader, CardT
 import { useCreateMember, useUpdateMember } from '../../hooks/useFinancialData';
 import { formatDateBR } from '../../db';
 import type { Member, MilitaryRank } from '../../types';
-import { MILITARY_RANKS } from '../../types';
+import { ALLOWED_MILITARY_RANKS, isAllowedMilitaryRank, militaryRankLabel } from '../../types';
 
 const memberSchema = z.object({
   rank: z.string().min(1, 'Post/Grad é obrigatório'),
@@ -45,7 +45,7 @@ export function MemberForm({ initialData, onSuccess, onCancel }: MemberFormProps
   const [saveError, setSaveError] = useState('');
 
   const defaultValues: MemberFormData = {
-    rank: initialData?.rank || 'SD',
+    rank: initialData?.rank || 'SD_RC',
     name: initialData?.name || '',
     ordem: initialData?.ordem || 1,
     phone: initialData?.phone || '',
@@ -67,8 +67,23 @@ export function MemberForm({ initialData, onSuccess, onCancel }: MemberFormProps
   const watchedStatus = watch('status');
   const phoneField = register('phone');
 
+  const rankOptions = ALLOWED_MILITARY_RANKS.map(rank => ({
+    value: rank.value,
+    label: rank.label,
+  }));
+  if (initialData && !isAllowedMilitaryRank(initialData.rank)) {
+    rankOptions.unshift({
+      value: initialData.rank,
+      label: `Manter cadastro antigo: ${militaryRankLabel(initialData.rank)}`,
+    });
+  }
+
   const handleSubmitForm = async (data: MemberFormData) => {
     setSaveError('');
+    if (!isAllowedMilitaryRank(data.rank) && data.rank !== initialData?.rank) {
+      setSaveError('Escolha um dos postos permitidos: Soldado Recruta, Soldado Engajado ou Cabo.');
+      return;
+    }
     const memberData = {
       rank: data.rank as MilitaryRank,
       name: data.name.trim(),
@@ -102,7 +117,7 @@ export function MemberForm({ initialData, onSuccess, onCancel }: MemberFormProps
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Select
               label="Post/Grad *"
-              options={MILITARY_RANKS.map(r => ({ value: r.value, label: `${r.value} - ${r.label}` }))}
+              options={rankOptions}
               placeholder="Selecione o posto/graduação"
               {...register('rank')}
               error={errors.rank?.message}
@@ -121,6 +136,9 @@ export function MemberForm({ initialData, onSuccess, onCancel }: MemberFormProps
               error={errors.ordem?.message}
             />
           </div>
+          <p className="-mt-2 text-xs text-text-muted">
+            Postos permitidos: Soldado Recruta, Soldado Engajado e Cabo. Cadastros antigos com outro posto podem ser mantidos ou convertidos.
+          </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input

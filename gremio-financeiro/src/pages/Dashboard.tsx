@@ -4,8 +4,10 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Wallet, ArrowDown, ArrowUp, CheckCircle, AlertCircle, QrCode } from 'lucide-react';
 import { Button, Badge, Card, CardContent, CardHeader, CardTitle } from '../components/ui';
+import { PageHeader } from '../components/layout';
 import { useDashboardKPIs, useMemberPaymentStatus } from '../hooks/useFinancialData';
 import { formatBRL, getCurrentMonthYear, getPreviousMonthYear, getNextMonthYear } from '../db';
+import { militaryRankLabel } from '../types';
 
 const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -25,29 +27,29 @@ export function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="p-4 lg:p-6">
+      <div>
         <p className="text-text-secondary">Carregando...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-4 lg:p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-text-primary">Dashboard</h1>
-          <p className="text-text-secondary mt-1">Visão rápida do caixa e das mensalidades</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => setMonthYear(getPreviousMonthYear(monthYear))} aria-label="Mês anterior">
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <span className="px-3 py-2 text-sm font-medium text-text-primary bg-tertiary/50 rounded-lg">{monthTitle(monthYear)}</span>
-          <Button variant="ghost" size="icon" onClick={() => setMonthYear(getNextMonthYear(monthYear))} aria-label="Próximo mês">
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Dashboard"
+        description="Visão rápida do caixa e das mensalidades"
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setMonthYear(getPreviousMonthYear(monthYear))} aria-label="Mês anterior">
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="px-3 py-2 text-sm font-medium text-text-primary bg-tertiary/50 rounded-lg">{monthTitle(monthYear)}</span>
+            <Button variant="ghost" size="icon" onClick={() => setMonthYear(getNextMonthYear(monthYear))} aria-label="Próximo mês">
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        }
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
@@ -92,7 +94,7 @@ export function Dashboard() {
                 {pending.slice(0, 8).map(status => (
                   <li key={status.member.id} className="py-2 flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-medium text-text-primary">{status.member.rank} {status.member.name}</p>
+                      <p className="text-sm font-medium text-text-primary">{militaryRankLabel(status.member.rank)} {status.member.name}</p>
                       <p className="text-xs text-text-muted">{status.member.phone || 'Sem WhatsApp cadastrado'}</p>
                     </div>
                     <Badge variant="danger">Pendente</Badge>
@@ -119,7 +121,7 @@ export function Dashboard() {
                 {paid.slice(0, 8).map(status => (
                   <li key={status.member.id} className="py-2 flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-medium text-text-primary">{status.member.rank} {status.member.name}</p>
+                      <p className="text-sm font-medium text-text-primary">{militaryRankLabel(status.member.rank)} {status.member.name}</p>
                       <p className="text-xs text-text-muted">{formatBRL(status.amount)}</p>
                     </div>
                     <Badge variant="success">Pago</Badge>

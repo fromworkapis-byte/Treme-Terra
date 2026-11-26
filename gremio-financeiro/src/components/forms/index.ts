@@ -6,3 +6,5 @@ export { AccountForm } from './AccountForm';
 export { CategoryForm } from './CategoryForm';
 export { ReceiptPaymentForm } from './ReceiptPaymentForm';
 export { BillingSettingsForm } from './BillingSettingsForm';
+export { ReceiptField } from './ReceiptField';
+export { AttachmentList } from './AttachmentList';

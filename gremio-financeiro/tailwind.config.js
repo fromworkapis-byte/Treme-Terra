@@ -9,34 +9,34 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#0a0f1a',
-          secondary: '#111827',
-          tertiary: '#1e293b',
+          DEFAULT: '#0b1220',
+          secondary: '#121b2b',
+          tertiary: '#1d2a3f',
         },
         text: {
-          primary: '#f1f5f9',
-          secondary: '#94a3b8',
-          muted: '#64748b',
+          primary: '#eef3fa',
+          secondary: '#a8b6ca',
+          muted: '#7b8ca6',
         },
         border: {
-          DEFAULT: '#1e293b',
-          hover: '#334155',
+          DEFAULT: '#24334a',
+          hover: '#365074',
         },
         success: {
-          DEFAULT: '#10b981',
-          light: '#34d399',
+          DEFAULT: '#35c98a',
+          light: '#6ee7b7',
         },
         danger: {
-          DEFAULT: '#ef4444',
-          light: '#f87171',
+          DEFAULT: '#f2636f',
+          light: '#ff8f99',
         },
         warning: {
-          DEFAULT: '#f59e0b',
-          light: '#fbbf24',
+          DEFAULT: '#e8b45c',
+          light: '#ffd27a',
         },
         info: {
-          DEFAULT: '#3b82f6',
-          light: '#60a5fa',
+          DEFAULT: '#5b9cff',
+          light: '#8db8ff',
         },
       },
       fontFamily: {

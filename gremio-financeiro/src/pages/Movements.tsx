@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useState } from 'react';
 import { Download, ArrowLeftRight, Edit, Trash } from 'lucide-react';
 import { Button, Input, Select, Badge, Card, CardContent, CardHeader, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, TableHead, ScrollArea, Tabs, TabsList, TabsTrigger, TabsContent, Modal } from '../components/ui';
+import { PageHeader } from '../components/layout';
 import { useEntries, useExpenses, useTransfers, useUpdateTransfer, useDeleteTransfer } from '../hooks/useFinancialData';
 import { useAccounts } from '../hooks/useFinancialData';
 import { formatBRL, formatDateBR } from '../db';
@@ -127,20 +128,17 @@ export function Movements() {
   };
 
   return (
-    <div className="p-4 lg:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-text-primary">Movimentações</h1>
-          <p className="text-text-secondary mt-1">Histórico completo de todas as operações financeiras</p>
-        </div>
-        <div className="flex gap-2">
+    <div className="space-y-6">
+      <PageHeader
+        title="Movimentações"
+        description="Histórico completo de todas as operações financeiras"
+        actions={
           <Button variant="outline" onClick={handleOpenCreateTransfer}>
             <ArrowLeftRight className="w-4 h-4 mr-2" />
             Nova Transferência
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Filters */}
       <Card>

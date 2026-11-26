@@ -109,3 +109,53 @@ export function analyzeReceipt(text: string, members: Member[], expectedCents?: 
     txid: text.match(/GFZ[A-Z0-9]{1,8}\d{6}/i)?.[0]?.toUpperCase(),
   };
 }
+
+export interface ExpenseReceiptAnalysis {
+  text: string;
+  amountCents?: number;
+  date?: string;
+  description?: string;
+  beneficiary?: string;
+  receiptNumber?: string;
+}
+
+const RECEIPT_IGNORE_LINE = /^(COMPROVANTE|RECIBO|NOTA\s*FISCAL?|DATA|VALOR|TOTAL|SUBTOTAL|PIX|BANCO|CGM|CNPJ|CPF|FAVORECIDO|PAGADOR|IDENTIFICADOR|TID|NSU|AUTENTIZACAO|AUTENTICACAO)/;
+const MERCHANT_HINT = /(MERCADO|SUPERMERCADO|LOJA|POSTO|FARMACIA|RESTAURANTE|PADARIA|ACOUGUE|LANCHONETE|HOTEL|PAPELARIA|FERRAGEM|MATERIAL|SUPRIMENTO|OFICINA|CLINICA)/;
+
+function titleCase(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/(^|\s)(\S)/g, (_, separator: string, letter: string) => separator + letter.toUpperCase())
+    .trim();
+}
+
+function extractMerchant(text: string): string | undefined {
+  const lines = text
+    .split(/\r?\n/)
+    .map(line => normalize(line).replace(/\s+/g, ' ').trim())
+    .filter(line => line.length > 2)
+    .filter(line => !RECEIPT_IGNORE_LINE.test(line))
+    .filter(line => !/^[\d\s.,/\-]+$/.test(line));
+
+  const candidate = lines.find(line => MERCHANT_HINT.test(line)) || lines[0];
+  return candidate ? titleCase(candidate) : undefined;
+}
+
+function extractReceiptNumber(text: string): string | undefined {
+  const match = text.match(/(?:NOTA|NF|RECIBO|DOCUMENTO|NSU)[^\d]{0,12}(\d{3,})/i);
+  return match?.[1];
+}
+
+/** Sugestões para o formulário de despesa. O usuário sempre confere e ajusta. */
+export function analyzeExpenseReceipt(text: string): ExpenseReceiptAnalysis {
+  const merchant = extractMerchant(text);
+  return {
+    text,
+    amountCents: extractAmount(text),
+    date: extractDate(text),
+    description: merchant,
+    beneficiary: merchant,
+    receiptNumber: extractReceiptNumber(text),
+  };
+}
+
