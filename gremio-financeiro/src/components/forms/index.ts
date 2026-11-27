@@ -1,5 +1,6 @@
 export { EntryForm } from './EntryForm';
 export { ExpenseForm } from './ExpenseForm';
+export { FixedExpenseForm } from './FixedExpenseForm';
 export { TransferForm } from './TransferForm';
 export { MemberForm } from './MemberForm';
 export { AccountForm } from './AccountForm';

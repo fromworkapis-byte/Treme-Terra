@@ -8,6 +8,8 @@ import {
   type BillingSettings,
 } from '../../lib/billing';
 import { formatBRL, getCurrentMonthYear, parseBRL } from '../../db';
+import { useAccounts, useCategories } from '../../hooks/useFinancialData';
+import type { PaymentMethod } from '../../types';
 import { type PixKeyType } from '../../lib/pix';
 import { fileToDataUrl, formatFileSize, isImageFile, MAX_ATTACHMENT_BYTES } from '../../lib/attachment';
 
@@ -27,6 +29,8 @@ export function BillingSettingsForm() {
   const [qrCode, setQrCode] = useState('');
   const [generating, setGenerating] = useState(false);
   const [chargeMessage, setChargeMessage] = useState('');
+  const { data: accounts } = useAccounts();
+  const { data: incomeCategories } = useCategories('INCOME');
 
   React.useEffect(() => {
     Promise.all([getBillingSettings(), getBillingState()]).then(([loadedSettings, state]) => {
@@ -185,6 +189,53 @@ export function BillingSettingsForm() {
             Padrão: {formatBRL(2000)}. Se o integrante atrasar meses, digite o valor total combinado ao registrar o pagamento.
           </p>
           <p className="text-xs text-text-secondary">Valor de referência: {formatBRL(parseBRL(amount) || 0)}</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Entrada das mensalidades</CardTitle>
+          <CardDescription>Ao registrar um pagamento no efetivo, o valor entra no caixa automaticamente.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Select
+              label="Conta creditada"
+              options={[
+                { value: '', label: 'Padrão (PIX ou caixa)' },
+                ...(accounts || []).map(account => ({ value: account.id, label: account.name })),
+              ]}
+              value={settings.incomeAccountId}
+              onChange={event => update('incomeAccountId', event.target.value)}
+            />
+            <Select
+              label="Categoria da entrada"
+              options={[
+                { value: '', label: 'Padrão (Mensalidades)' },
+                ...(incomeCategories || []).map(category => ({ value: category.id, label: category.name })),
+              ]}
+              value={settings.incomeCategoryId}
+              onChange={event => update('incomeCategoryId', event.target.value)}
+            />
+            <Select
+              label="Forma de pagamento"
+              options={[
+                { value: 'PIX', label: 'PIX' },
+                { value: 'CASH', label: 'Dinheiro' },
+                { value: 'TRANSFER', label: 'Transferência' },
+                { value: 'DEPOSIT', label: 'Depósito' },
+                { value: 'OTHER', label: 'Outros' },
+              ]}
+              value={settings.incomePaymentMethod}
+              onChange={event => update('incomePaymentMethod', event.target.value as PaymentMethod)}
+            />
+          </div>
+          <p className="text-xs text-text-muted">
+            Deixe conta ou categoria em branco para usar os padrões. Estornar a mensalidade no efetivo também remove a entrada.
+          </p>
+          <Button variant="outline" onClick={handleSave} disabled={saving}>
+            <Save className="w-4 h-4 mr-2" /> Salvar conta e categoria
+          </Button>
         </CardContent>
       </Card>
 

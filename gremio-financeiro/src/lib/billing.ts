@@ -1,5 +1,6 @@
 // ===== CONFIGURAÇÃO DA COBRANÇA MENSAL =====
 import { db, formatBRL, getCurrentMonthYear } from '../db';
+import type { PaymentMethod } from '../types';
 import type { PixKeyType } from './pix';
 import { buildPixPayload, buildPixQr, buildTxid } from './pix';
 import { normalizePhone, sendText, sendQrImage, type SendResult } from './whatsapp';
@@ -13,6 +14,9 @@ export interface BillingSettings {
   chargeDescription: string;
   chargeMessage: string;  // texto salvo, usado pelo botão Gerar cobrança
   qrCodeImage: string;    // data URL da imagem salva do QR Code
+  incomeAccountId: string;   // conta creditada quando o efetivo paga
+  incomeCategoryId: string;  // categoria da entrada gerada
+  incomePaymentMethod: PaymentMethod;
   whatsappApiUrl: string;
   whatsappApiKey: string;
   whatsappInstance: string;
@@ -42,6 +46,9 @@ export const DEFAULT_BILLING: BillingSettings = {
   chargeDescription: 'Mensalidade do Grêmio',
   chargeMessage: '',
   qrCodeImage: '',
+  incomeAccountId: '',
+  incomeCategoryId: '',
+  incomePaymentMethod: 'PIX',
   whatsappApiUrl: '',
   whatsappApiKey: '',
   whatsappInstance: '',

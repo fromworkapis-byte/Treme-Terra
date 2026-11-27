@@ -5,8 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from './components/ui';
 import { MainLayout } from './components/layout/MainLayout';
 import { Dashboard, Entries, Expenses, Movements, Accounts, Members, Reports, Audit, Settings } from './pages';
-import { seedDatabase } from './db';
+import { migrateMemberPaymentEntries, seedDatabase } from './db';
 import { runMonthlyBilling } from './lib/billing';
+import { runFixedExpenses } from './lib/fixedExpenses';
 
 // Create QueryClient
 const queryClient = new QueryClient({
@@ -26,15 +27,18 @@ let isInitialized = false;
 function AppRoutes() {
   if (!isInitialized) {
     isInitialized = true;
-    seedDatabase();
+    seedDatabase()
+      .then(migrateMemberPaymentEntries)
+      .catch(error => console.error('Erro ao preparar o banco de dados:', error));
   }
 
   React.useEffect(() => {
-    const checkBilling = () => {
+    const runRoutines = () => {
       runMonthlyBilling().catch(error => console.error('Erro no envio mensal automático:', error));
+      runFixedExpenses().catch(error => console.error('Erro nas despesas fixas:', error));
     };
-    checkBilling();
-    const timer = window.setInterval(checkBilling, 60 * 1000);
+    runRoutines();
+    const timer = window.setInterval(runRoutines, 60 * 1000);
     return () => window.clearInterval(timer);
   }, []);
 

@@ -4,12 +4,13 @@ import { useState } from 'react';
 import { Plus, Edit, Trash } from 'lucide-react';
 import { Button, Input, Select, Badge, Card, CardContent, CardHeader, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, TableHead, ScrollArea, Modal } from '../components/ui';
 import { PageHeader } from '../components/layout';
-import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from '../hooks/useFinancialData';
-import { useCategories } from '../hooks/useFinancialData';
-import { useAccounts } from '../hooks/useFinancialData';
-import { formatBRL, formatDateBR } from '../db';
-import { ExpenseForm } from '../components/forms';
-import type { Expense, Category, Account } from '../types';
+import {
+  useAccounts, useCategories, useCreateExpense, useDeleteExpense, useDeleteFixedExpense,
+  useExpenses, useFixedExpenses, useGenerateFixedExpenses, useUpdateExpense,
+} from '../hooks/useFinancialData';
+import { formatBRL, formatDateBR, formatMonthYear } from '../db';
+import { ExpenseForm, FixedExpenseForm } from '../components/forms';
+import type { Account, Category, Expense, FixedExpense } from '../types';
 
 export function Expenses() {
   const [search, setSearch] = useState('');
@@ -18,6 +19,10 @@ export function Expenses() {
   const [showForm, setShowForm] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [deletingExpense, setDeletingExpense] = useState<Expense | null>(null);
+  const [showFixedForm, setShowFixedForm] = useState(false);
+  const [editingFixed, setEditingFixed] = useState<FixedExpense | null>(null);
+  const [deletingFixed, setDeletingFixed] = useState<FixedExpense | null>(null);
+  const [fixedMessage, setFixedMessage] = useState('');
 
   const { data: expenses, isLoading } = useExpenses({
     search: search || undefined,
@@ -30,9 +35,14 @@ export function Expenses() {
   const createExpense = useCreateExpense();
   const updateExpense = useUpdateExpense();
   const deleteExpense = useDeleteExpense();
+  const { data: fixedExpenses } = useFixedExpenses();
+  const deleteFixedExpense = useDeleteFixedExpense();
+  const generateFixed = useGenerateFixedExpenses();
 
   const expenseCategories = categories?.filter(c => c.type === 'EXPENSE') || [];
   const activeAccounts = accounts?.filter(a => a.isActive) || [];
+  const categoryName = (id: string) => categories?.find(category => category.id === id)?.name || '-';
+  const accountName = (id: string) => accounts?.find(account => account.id === id)?.name || '-';
 
   const handleOpenCreate = () => {
     setEditingExpense(null);
@@ -68,6 +78,35 @@ export function Expenses() {
     handleCloseForm();
   };
 
+  const handleOpenCreateFixed = () => {
+    setEditingFixed(null);
+    setShowFixedForm(true);
+  };
+
+  const handleOpenEditFixed = (item: FixedExpense) => {
+    setEditingFixed(item);
+    setShowFixedForm(true);
+  };
+
+  const handleGenerateFixed = async () => {
+    setFixedMessage('');
+    try {
+      const count = await generateFixed.mutateAsync();
+      setFixedMessage(count > 0
+        ? `${count} despesa(s) fixa(s) lançada(s) neste mês.`
+        : 'Nenhuma despesa fixa nova para lançar neste mês.');
+    } catch {
+      setFixedMessage('Não foi possível lançar as despesas fixas.');
+    }
+  };
+
+  const handleConfirmDeleteFixed = async () => {
+    if (deletingFixed) {
+      await deleteFixedExpense.mutateAsync(deletingFixed.id);
+      setDeletingFixed(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -80,6 +119,56 @@ export function Expenses() {
           </Button>
         }
       />
+
+      {/* Despesas fixas mensais */}
+      <Card>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>Despesas fixas mensais</CardTitle>
+            <p className="text-sm text-text-muted mt-1">Cadastradas uma vez, são lançadas automaticamente na data escolhida.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={handleGenerateFixed} disabled={generateFixed.isPending}>
+              {generateFixed.isPending ? 'Lançando...' : 'Lançar mês atual'}
+            </Button>
+            <Button variant="danger" size="sm" onClick={handleOpenCreateFixed}>
+              <Plus className="w-4 h-4 mr-2" /> Nova despesa fixa
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {fixedMessage && <p className="text-sm text-text-secondary" role="status">{fixedMessage}</p>}
+          {(fixedExpenses || []).length === 0 ? (
+            <p className="py-4 text-center text-sm text-text-muted">Nenhuma despesa fixa cadastrada.</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {(fixedExpenses || []).map(item => (
+                <div key={item.id} className="rounded-lg border border-border bg-tertiary/30 p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-text-primary">{item.description}</p>
+                      <p className="text-sm font-mono text-danger">{formatBRL(item.amount)} · dia {item.day}</p>
+                    </div>
+                    <Badge variant={item.isActive ? 'success' : 'gray'}>{item.isActive ? 'Ativa' : 'Inativa'}</Badge>
+                  </div>
+                  <p className="text-xs text-text-muted">{categoryName(item.categoryId)} · {accountName(item.accountId)}</p>
+                  <p className="text-xs text-text-muted">
+                    {item.lastGeneratedMonth ? `Último lançamento: ${formatMonthYear(item.lastGeneratedMonth)}` : 'Ainda não lançada'}
+                  </p>
+                  <div className="flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => handleOpenEditFixed(item)} aria-label="Editar despesa fixa">
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-danger hover:text-danger" onClick={() => setDeletingFixed(item)} aria-label="Excluir despesa fixa">
+                      <Trash className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Filters */}
       <Card>
@@ -199,6 +288,41 @@ export function Expenses() {
           <div className="flex justify-end gap-3 pt-4 border-t border-border">
             <Button variant="outline" onClick={handleCloseDelete}>Cancelar</Button>
             <Button variant="danger" onClick={handleConfirmDelete}>Excluir</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Create/Edit despesa fixa */}
+      <Modal
+        open={showFixedForm}
+        onOpenChange={setShowFixedForm}
+        title={editingFixed ? 'Editar despesa fixa' : 'Nova despesa fixa'}
+        size="lg"
+      >
+        <FixedExpenseForm
+          initialData={editingFixed || undefined}
+          categories={expenseCategories}
+          accounts={activeAccounts}
+          onSuccess={() => { setShowFixedForm(false); setEditingFixed(null); }}
+          onCancel={() => { setShowFixedForm(false); setEditingFixed(null); }}
+        />
+      </Modal>
+
+      {/* Excluir despesa fixa */}
+      <Modal
+        open={!!deletingFixed}
+        onOpenChange={() => setDeletingFixed(null)}
+        title="Confirmar exclusão"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-text-secondary">
+            Excluir a despesa fixa <strong>{deletingFixed?.description}</strong>?
+          </p>
+          <p className="text-sm text-text-muted">Os lançamentos já gerados não serão removidos.</p>
+          <div className="flex justify-end gap-3 border-t border-border pt-4">
+            <Button variant="outline" onClick={() => setDeletingFixed(null)}>Cancelar</Button>
+            <Button variant="danger" onClick={handleConfirmDeleteFixed}>Excluir</Button>
           </div>
         </div>
       </Modal>

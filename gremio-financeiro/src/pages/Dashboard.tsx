@@ -75,6 +75,7 @@ export function Dashboard() {
             <p className="text-sm text-text-secondary">Mensalidades recebidas</p>
             <p className="text-2xl font-bold text-text-primary mt-1">{formatBRL(collected)}</p>
             <p className="text-xs text-text-muted mt-1">{paid.length} pagos · {pending.length} pendentes</p>
+            <p className="text-xs text-text-muted">Já incluídas nas entradas do mês</p>
           </CardContent>
         </Card>
       </div>

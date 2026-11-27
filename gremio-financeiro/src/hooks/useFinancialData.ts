@@ -3,11 +3,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   db, formatBRL, parseBRL, formatDateBR, getCurrentMonthYear, updateAllAccountBalances,
   addAttachment, getAttachments, deleteAttachment, recordMemberPayment, recordMemberPayments,
+  deleteMemberPaymentRecord,
 } from '../db';
 import { fileToDataUrl } from '../lib/attachment';
+import {
+  createFixedExpense, deleteFixedExpense, getFixedExpenses, runFixedExpenses, updateFixedExpense,
+} from '../lib/fixedExpenses';
 import type { ParsedMember } from '../lib/memberImport';
 import type {
-  Entry, Expense, Transfer, Account, Category, Member, MemberPayment, FinancialFilters,
+  Entry, Expense, Transfer, Account, Category, Member, MemberPayment, FixedExpense, FinancialFilters,
   MemberFilters, User, UserRole, EntityType,
 } from '../types';
 
@@ -25,13 +29,14 @@ export const queryKeys = {
   yearlyComparison: ['yearlyComparison'] as const,
   categoryExpenses: (monthYear?: string) => ['categoryExpenses', monthYear] as const,
   attachments: (entityType: EntityType, entityId?: string) => ['attachments', entityType, entityId] as const,
+  fixedExpenses: ['fixedExpenses'] as const,
 };
 
 // ===== ACCOUNTS =====
 export function useAccounts() {
   return useQuery({
     queryKey: queryKeys.accounts,
-    queryFn: () => db.accounts.where('isActive').equals(true).toArray(),
+    queryFn: () => db.accounts.filter(account => account.isActive).toArray(),
   });
 }
 
@@ -101,8 +106,8 @@ export function useCategories(type?: 'INCOME' | 'EXPENSE') {
   return useQuery({
     queryKey: queryKeys.categories(type),
     queryFn: () => {
-      let query = db.categories.where('isActive').equals(true);
-      if (type) query = query.and(c => c.type === type);
+      let query = db.categories.filter(category => category.isActive);
+      if (type) query = query.and(category => category.type === type);
       return query.toArray();
     },
   });
@@ -633,6 +638,9 @@ export function useMemberPaymentStatus(monthYear: string) {
 function invalidatePayments(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ['memberPayments'] });
   queryClient.invalidateQueries({ queryKey: ['memberPaymentStatus'] });
+  queryClient.invalidateQueries({ queryKey: ['entries'] });
+  queryClient.invalidateQueries({ queryKey: ['accounts'] });
+  queryClient.invalidateQueries({ queryKey: ['dashboard'] });
 }
 
 export function useCreateMemberPayment() {
@@ -662,7 +670,7 @@ export function useDeleteMemberPayment() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      await db.memberPayments.delete(id);
+      await deleteMemberPaymentRecord(id);
     },
     onSuccess: () => invalidatePayments(queryClient),
   });
@@ -697,6 +705,49 @@ export function useRecordMemberPaymentsBulk() {
       recordedById?: string;
     }) => recordMemberPayments({ memberIds, monthYear, amount, date, notes, recordedById }),
     onSuccess: () => invalidatePayments(queryClient),
+  });
+}
+
+// ===== DESPESAS FIXAS =====
+export function useFixedExpenses() {
+  return useQuery({
+    queryKey: queryKeys.fixedExpenses,
+    queryFn: getFixedExpenses,
+  });
+}
+
+export function useSaveFixedExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: {
+      id?: string;
+      data: Omit<FixedExpense, 'id' | 'createdAt' | 'updatedAt'>;
+    }) => {
+      if (id) await updateFixedExpense(id, data);
+      else await createFixedExpense(data);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.fixedExpenses }),
+  });
+}
+
+export function useDeleteFixedExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteFixedExpense,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.fixedExpenses }),
+  });
+}
+
+export function useGenerateFixedExpenses() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: runFixedExpenses,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.fixedExpenses });
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
   });
 }
 

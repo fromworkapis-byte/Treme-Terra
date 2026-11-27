@@ -21,6 +21,7 @@ import type {
   AuditAction,
 } from '../types';
 import { CURRENT_USER } from '../lib/currentUser';
+import type { BillingSettings } from '../lib/billing';
 
 // ===== DATABASE CLASS =====
 class GremioDatabase extends Dexie {
@@ -220,9 +221,83 @@ export interface RecordMemberPaymentInput {
   recordedById?: string;
 }
 
+type DuesDestination = { accountId: string; categoryId: string; paymentMethod: PaymentMethod };
+
+/** Conta/categoria onde a mensalidade paga entra no caixa. */
+async function resolveDuesDestination(billing: Partial<BillingSettings>): Promise<DuesDestination> {
+  const [accounts, categories] = await Promise.all([
+    db.accounts.toArray(),
+    db.categories.toArray(),
+  ]);
+
+  const activeAccounts = accounts.filter(account => account.isActive);
+  const account = activeAccounts.find(item => item.id === billing.incomeAccountId)
+    || activeAccounts.find(item => item.type === 'PIX')
+    || activeAccounts.find(item => item.type === 'CASH')
+    || activeAccounts[0];
+
+  const incomeCategories = categories.filter(category => category.type === 'INCOME' && category.isActive);
+  const category = incomeCategories.find(item => item.id === billing.incomeCategoryId)
+    || incomeCategories.find(item => item.name.trim().toLowerCase() === 'mensalidades')
+    || incomeCategories[0];
+
+  if (!account || !category) {
+    throw new Error('Configure uma conta e uma categoria de entrada em Configurações → Cobrança.');
+  }
+
+  return {
+    accountId: account.id,
+    categoryId: category.id,
+    paymentMethod: billing.incomePaymentMethod || 'PIX',
+  };
+}
+
+async function findEntryForPayment(paymentId: string): Promise<Entry | undefined> {
+  return db.entries
+    .filter(entry => (entry.notes || '').includes(`memberPaymentId:${paymentId}`))
+    .first();
+}
+
+/** Cria ou atualiza a entrada no caixa correspondente ao pagamento do efetivo. */
+async function syncMemberPaymentEntry(
+  payment: MemberPayment,
+  destination: DuesDestination,
+  linkedEntryId?: string,
+): Promise<void> {
+  const [entry, member] = await Promise.all([
+    linkedEntryId ? db.entries.get(linkedEntryId) : undefined,
+    db.members.get(payment.memberId),
+  ]);
+  const existing = entry || await findEntryForPayment(payment.id);
+  const now = new Date().toISOString();
+  const entryData = {
+    date: payment.date,
+    description: `Mensalidade ${formatMonthYear(payment.referenceMonth)} - ${member?.name || 'Integrante'}`,
+    amount: payment.amount,
+    paymentMethod: destination.paymentMethod,
+    accountId: destination.accountId,
+    categoryId: destination.categoryId,
+    createdById: payment.recordedById || CURRENT_USER.id,
+    notes: `Pagamento do efetivo (${payment.referenceMonth}) · memberPaymentId:${payment.id}`,
+    updatedAt: now,
+  };
+
+  if (existing) {
+    await db.entries.update(existing.id, entryData);
+    if (payment.entryId !== existing.id) {
+      await db.memberPayments.update(payment.id, { entryId: existing.id });
+    }
+    return;
+  }
+
+  const id = crypto.randomUUID();
+  await db.entries.add({ ...entryData, id, createdAt: now });
+  await db.memberPayments.update(payment.id, { entryId: id });
+}
+
 /**
  * Cria ou atualiza pagamentos garantindo no máximo um registro por
- * (integrante, mês). Usado tanto no registro individual quanto no lote.
+ * (integrante, mês). Cada pagamento gera uma entrada no caixa.
  */
 export async function recordMemberPayments(input: Omit<RecordMemberPaymentInput, 'memberId'> & {
   memberIds: string[];
@@ -233,47 +308,68 @@ export async function recordMemberPayments(input: Omit<RecordMemberPaymentInput,
   const now = new Date().toISOString();
   const recordedById = input.recordedById || 'admin-001';
 
-  return db.transaction('rw', db.memberPayments, async () => {
-    const existing = await db.memberPayments
-      .where('referenceMonth')
-      .equals(input.monthYear)
-      .toArray();
-    const byMember = new Map(existing.map(payment => [payment.memberId, payment]));
-    const ids: string[] = [];
+  const billingRow = await db.settings.get('billing');
+  const billing = (billingRow?.value || {}) as Partial<BillingSettings>;
+  const destination = await resolveDuesDestination(billing);
 
-    for (const memberId of memberIds) {
-      const current = byMember.get(memberId);
+  const ids = await db.transaction(
+    'rw',
+    db.memberPayments, db.entries, db.members,
+    async () => {
+      const existing = await db.memberPayments
+        .where('referenceMonth')
+        .equals(input.monthYear)
+        .toArray();
+      const byMember = new Map(existing.map(payment => [payment.memberId, payment]));
+      const result: string[] = [];
 
-      if (current) {
-        await db.memberPayments.update(current.id, {
-          amount: input.amount,
+      for (const memberId of memberIds) {
+        const current = byMember.get(memberId);
+
+        if (current) {
+          const updated: MemberPayment = {
+            ...current,
+            amount: input.amount,
+            date: input.date,
+            notes: input.notes,
+            updatedAt: now,
+          };
+          await db.memberPayments.update(current.id, {
+            amount: input.amount,
+            date: input.date,
+            notes: input.notes,
+            updatedAt: now,
+          });
+          await syncMemberPaymentEntry(updated, destination, current.entryId);
+          byMember.set(memberId, updated);
+          result.push(current.id);
+          continue;
+        }
+
+        const id = crypto.randomUUID();
+        const created: MemberPayment = {
+          id,
+          memberId,
+          referenceMonth: input.monthYear,
           date: input.date,
+          amount: input.amount,
           notes: input.notes,
+          recordedById,
+          createdAt: now,
           updatedAt: now,
-        });
-        ids.push(current.id);
-        continue;
+        };
+        await db.memberPayments.add(created);
+        byMember.set(memberId, created);
+        await syncMemberPaymentEntry(created, destination);
+        result.push(id);
       }
 
-      const id = crypto.randomUUID();
-      const created: MemberPayment = {
-        id,
-        memberId,
-        referenceMonth: input.monthYear,
-        date: input.date,
-        amount: input.amount,
-        notes: input.notes,
-        recordedById,
-        createdAt: now,
-        updatedAt: now,
-      };
-      await db.memberPayments.add(created);
-      byMember.set(memberId, created);
-      ids.push(id);
-    }
+      return result;
+    },
+  );
 
-    return ids;
-  });
+  await updateAllAccountBalances();
+  return ids;
 }
 
 export async function recordMemberPayment(input: RecordMemberPaymentInput): Promise<string> {
@@ -282,6 +378,47 @@ export async function recordMemberPayment(input: RecordMemberPaymentInput): Prom
     memberIds: [input.memberId],
   });
   return id;
+}
+
+/** Estorna o pagamento do efetivo e remove a entrada gerada por ele. */
+export async function deleteMemberPaymentRecord(id: string): Promise<void> {
+  const payment = await db.memberPayments.get(id);
+  if (!payment) return;
+
+  await db.transaction('rw', db.memberPayments, db.entries, async () => {
+    await db.memberPayments.delete(id);
+    const linked = payment.entryId
+      ? await db.entries.get(payment.entryId)
+      : await findEntryForPayment(id);
+    if (linked) await db.entries.delete(linked.id);
+  });
+
+  await updateAllAccountBalances();
+}
+
+/** Cria entradas para pagamentos antigos que ainda não viraram lançamento. */
+export async function migrateMemberPaymentEntries(): Promise<void> {
+  const flag = await db.settings.get('duesEntriesMigrated');
+  if ((flag?.value as { done?: boolean } | undefined)?.done) return;
+
+  const billingRow = await db.settings.get('billing');
+  const billing = (billingRow?.value || {}) as Partial<BillingSettings>;
+  const destination = await resolveDuesDestination(billing);
+
+  await db.transaction('rw', db.memberPayments, db.entries, db.members, async () => {
+    const payments = await db.memberPayments.toArray();
+    for (const payment of payments) {
+      await syncMemberPaymentEntry(payment, destination, payment.entryId);
+    }
+  });
+
+  await db.settings.put({
+    key: 'duesEntriesMigrated',
+    value: { done: true },
+    description: 'Entradas das mensalidades do efetivo migradas',
+    updatedAt: new Date().toISOString(),
+  });
+  await updateAllAccountBalances();
 }
 
 // ===== SEED DATA =====

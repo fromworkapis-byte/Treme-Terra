@@ -95,6 +95,7 @@ export interface Expense {
   createdById: string;
   beneficiary?: string;      // Fornecedor
   receiptNumber?: string;    // Nº comprovante
+  fixedExpenseId?: string;   // Despesa fixa que gerou este lançamento
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -130,6 +131,7 @@ export interface MemberPayment {
   amount: number;
   referenceMonth: string;    // YYYY-MM (mês de referência)
   recordedById: string;
+  entryId?: string;          // Entrada no caixa gerada por este pagamento
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -137,6 +139,22 @@ export interface MemberPayment {
   // Populated
   member?: Member;
   recordedBy?: User;
+}
+
+export interface FixedExpense {
+  id: string;
+  description: string;
+  amount: number;            // centavos
+  day: number;               // dia do mês (1 a 31; ajustado para meses curtos)
+  paymentMethod: PaymentMethod;
+  accountId: string;
+  categoryId: string;
+  beneficiary?: string;
+  isActive: boolean;
+  lastGeneratedMonth?: string;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type EntityType = 'ENTRY' | 'EXPENSE' | 'MEMBER_PAYMENT';
